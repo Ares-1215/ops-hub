@@ -276,21 +276,25 @@ def upload_meta(cov):
     log("meta 上傳完成")
 
 
+DOC_KEYS = {   # Storage 物件名不能含中文 → ASCII 鍵名（index.html 的 DOCS 同步）
+    "報表盤點手冊.html": ("handbook.html", "text/html; charset=utf-8"),
+    "運務處資料分析提案.html": ("proposal.html", "text/html; charset=utf-8"),
+    "運務處資料分析提案.docx": ("proposal.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+    "每日運行狀況剖析.html": ("daily.html", "text/html; charset=utf-8"),
+}
+
+
 def upload_docs(st):
     n = 0
-    for p in (ENGINE / "out").glob("*.html"):
-        b = p.read_bytes(); h = md5(b)
-        if st["docs"].get(p.name) == h:
+    for name, (key, ctype) in DOC_KEYS.items():
+        p = ENGINE / "out" / name
+        if not p.exists():
             continue
-        edge({"action": "put_raw", "bucket": "nx-docs", "path": p.name, "b64": base64.b64encode(b).decode(), "content_type": "text/html; charset=utf-8"})
-        st["docs"][p.name] = h; n += 1
-    for p in (ENGINE / "out").glob("*.docx"):
         b = p.read_bytes(); h = md5(b)
-        if st["docs"].get(p.name) == h:
+        if st["docs"].get(key) == h:
             continue
-        edge({"action": "put_raw", "bucket": "nx-docs", "path": p.name, "b64": base64.b64encode(b).decode(),
-              "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"})
-        st["docs"][p.name] = h; n += 1
+        edge({"action": "put_raw", "bucket": "nx-docs", "path": key, "b64": base64.b64encode(b).decode(), "content_type": ctype})
+        st["docs"][key] = h; n += 1
     log(f"docs 上傳 {n} 份")
 
 
