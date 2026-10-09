@@ -3,3 +3,4 @@ tools/sync.log
 tools/*.log
 supabase/.temp
 supabase/
+tools/*.out
