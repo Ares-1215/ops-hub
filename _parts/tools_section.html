@@ -1,0 +1,74 @@
+<!-- ================= 班次工具 ================= -->
+<section id="t-tools" class="hide">
+  <div class="bar" id="toolTabs">
+    <button data-tool="cut" class="pri">減開建議清單</button><button data-tool="merge">併櫃模擬</button><button data-tool="trip">班次體檢卡</button><button data-tool="ot">加班檢核</button><button data-tool="review">決策回看</button>
+  </div>
+
+  <!-- 減開建議清單 -->
+  <div id="tool-cut">
+    <div class="card">
+      <div class="bar">
+        <label>目標日 <input id="cutDay" type="date"></label>
+        <label>門檻 <select id="cutThr"><option value="55">≤55%</option><option value="50">≤50%</option></select></label>
+        <label>視窗 <select id="cutWin"><option value="4">近 4 週同星期</option><option value="8">近 8 週同星期</option><option value="all">全期同星期</option></select></label>
+        <label>至少 <input id="cutMin" type="number" value="3" min="1" max="30" style="width:60px"> 次</label>
+        <label>方向 <select id="cutDir"><option value="">全部</option><option>南向</option><option>北向</option><option>同區</option></select></label>
+        <label><input id="cutNoOt" type="checkbox" checked> 排除加班比 &gt;20% 的班次</label>
+        <label>單價 <input id="cutPrice" type="number" value="23" step="0.1" style="width:64px"> 元/km</label>
+        <input id="cutQ" type="search" placeholder="篩站名/班次">
+        <button id="cutRun" class="pri">產生清單</button>
+      </div>
+      <div class="bar">
+        <span id="cutFc" class="note"></span>
+      </div>
+    </div>
+    <div class="tiles" id="cutTiles" style="margin:10px 0"></div>
+    <div class="bar"><button id="cutAll">全選</button><button id="cutNone">全不選</button><button id="cutXls">⬇ Excel</button><input id="cutNote" type="text" placeholder="備註（給運指的說明）" style="flex:1;min-width:200px"><button id="cutSave" class="pri">登記採用（存入中樞）</button><span id="cutSaved" class="note"></span></div>
+    <div class="scroll" id="cutTable" style="max-height:60vh"></div>
+    <p class="note">規則：該班次在「視窗」內的同星期出現 ≥ 次數門檻，且發送積載率 ≤ 門檻的次數 ≥ 次數門檻，列為常態低載；預測件數＝近 4 週同星期件數平均；可省元/件＝里程 × 單價 ÷ 預測件數。清單是候選與證據，是否減開由運指依時效與客戶約定判斷。</p>
+  </div>
+
+  <!-- 併櫃模擬 -->
+  <div id="tool-merge" class="hide">
+    <div class="card"><div class="bar">
+      <label>日期 <select id="mgDay"></select></label>
+      <label>模式 <select id="mgMode"><option value="">全部</option><option value="A">A 同起站同迄站</option><option value="B">B 同起站、迄站同區</option></select></label>
+      <label>合計積載 ≤ <input id="mgCap" type="number" value="100" style="width:60px">%</label>
+      <label>延後 ≤ <input id="mgDelay" type="number" value="120" style="width:60px"> 分</label>
+      <label><input id="mgReg" type="checkbox"> 只看兩邊都是正班</label>
+      <label>方向 <select id="mgDir"><option value="">全部</option><option>南向</option><option>北向</option><option>同區</option></select></label>
+      <input id="mgQ" type="search" placeholder="篩站名/班次"><button id="mgRun" class="pri">模擬</button>
+    </div></div>
+    <div class="tiles" id="mgTiles" style="margin:10px 0"></div>
+    <div class="bar"><button id="mgXls">⬇ Excel</button><button id="mgSave" class="pri">登記採用的配對</button><span id="mgSaved" class="note"></span></div>
+    <div class="scroll" id="mgTable" style="max-height:60vh"></div>
+    <p class="note">A：路線完全相同，貨併到保留班次的櫃，少開一趟。B：同起站、迄站同一區但不同站，併成一車順路多卸一站，後一站會晚到，需運指評估時效。延後＝被併那櫃的封櫃時間晚於保留班次規定離站的分鐘數（保留班次要等多久）。省里程＝被併掉那班的班次里程（113 回填中位數；無資料則不計）。</p>
+  </div>
+
+  <!-- 班次體檢卡 -->
+  <div id="tool-trip" class="hide">
+    <div class="card"><div class="bar"><input id="tpCode" type="text" list="tpList" placeholder="班次代號，如 7628 / BF33" style="width:200px"><datalist id="tpList"></datalist><button id="tpRun" class="pri">查詢</button><span class="note">也可從減開清單／併櫃表點班次代號</span></div></div>
+    <div id="tpOut"></div>
+  </div>
+
+  <!-- 加班檢核 -->
+  <div id="tool-ot" class="hide">
+    <div class="card"><div class="bar">
+      <label>排序 <select id="otSort"><option value="low55">加班卻低載次數</option><option value="ot_days">加班天數</option><option value="avg">平均積載率（低→高）</option></select></label>
+      <label>最少加班天數 <input id="otMin" type="number" value="3" style="width:60px"></label>
+      <label>方向 <select id="otDir"><option value="">全部</option><option>南向</option><option>北向</option><option>同區</option></select></label>
+      <input id="otQ" type="search" placeholder="篩站名/班次"><button id="otRun" class="pri">檢核</button><button id="otXls">⬇ Excel</button>
+    </div></div>
+    <div class="grid2" style="margin:10px 0">
+      <div class="card"><h3>星期別加班（83 六方向）</h3><div class="sub">平日平均加班台數與南向−北向淨額；週五高於週四＝週末前清倉訊號</div><div id="otDow"></div></div>
+      <div class="card"><h3>方向失衡日（|南向−北向| ≥ 8）</h3><div class="sub">最近 60 天</div><div id="otImb" class="scroll" style="max-height:220px"></div></div>
+    </div>
+    <div class="scroll" id="otTable" style="max-height:60vh"></div>
+  </div>
+
+  <!-- 決策回看 -->
+  <div id="tool-review" class="hide">
+    <div class="card"><div class="bar"><label>期間 <input id="rvFrom" type="date"> ～ <input id="rvTo" type="date"></label><button id="rvRun" class="pri">載入</button><span class="note">執行率＝採用班數／建議班數；「實際未開」＝採用的班次當天封櫃明細裡沒有出現</span></div></div>
+    <div class="scroll" id="rvTable" style="max-height:60vh"></div>
+  </div>
+</section>

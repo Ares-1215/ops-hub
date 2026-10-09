@@ -106,6 +106,8 @@ def build():
     log("build_dataset: " + (r.stdout.strip().splitlines() or ["?"])[0])
     if r.returncode:
         log("build_dataset ERR: " + r.stderr[-500:])
+    r2 = subprocess.run([PY, "build_tools.py"], cwd=ENGINE, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    log("build_tools: " + (r2.stdout.strip().splitlines() or ["?"])[-1] + ("" if not r2.returncode else " ERR " + r2.stderr[-300:]))
     for b in ("build_dashboard.py", "build_proposal.py", "build_handbook.py"):
         subprocess.run([PY, b], cwd=ENGINE, capture_output=True)
     subprocess.run(["node", "html_to_docx.js", "out/運務處資料分析提案.html", "out/運務處資料分析提案.docx"], cwd=ENGINE, capture_output=True)
@@ -245,9 +247,28 @@ def upload_coverage():
     return rows
 
 
+def upload_trip_hist(st):
+    f = ENGINE / "data" / "trip_hist.json"
+    if not f.exists():
+        return
+    th = json.loads(f.read_text(encoding="utf-8"))
+    st.setdefault("trip_hist", {})
+    rows = []; n = 0
+    for code, v in th.items():
+        h = md5(json.dumps(v, ensure_ascii=False, sort_keys=True).encode())
+        if st["trip_hist"].get(code) == h:
+            continue
+        rows.append({"code": code, "info": v["info"], "hist": v["hist"], "updated_at": datetime.now().isoformat()}); st["trip_hist"][code] = h; n += 1
+        if len(rows) >= 150:
+            edge({"action": "ingest_trip_hist", "rows": rows}); rows = []
+    if rows:
+        edge({"action": "ingest_trip_hist", "rows": rows})
+    log(f"trip_hist 上傳 {n} 班次")
+
+
 def upload_meta(cov):
     d = ENGINE / "data"
-    for k, f in (("trip_km", "trip_km.json"), ("idle_trips", "idle_trips.json"), ("pair_low", "pair_low.json")):
+    for k, f in (("trip_km", "trip_km.json"), ("idle_trips", "idle_trips.json"), ("pair_low", "pair_low.json"), ("trip_dow", "trip_dow.json"), ("ot_agg", "ot_agg.json")):
         if (d / f).exists():
             edge({"action": "ingest_meta", "k": k, "v": json.loads((d / f).read_text(encoding="utf-8"))})
     if (d / "trip_load.json").exists():
@@ -326,7 +347,7 @@ def main():
     upload_daily(); upload_detail(st); save_state(st)
     upload_raw(st); save_state(st)
     upload_log(st); save_state(st)
-    cov = upload_coverage(); upload_meta(cov); upload_docs(st); save_state(st)
+    cov = upload_coverage(); upload_meta(cov); upload_trip_hist(st); save_state(st); upload_docs(st); save_state(st)
     log(f"=== 完成 {time.time() - t0:.0f}s ===")
 
 
