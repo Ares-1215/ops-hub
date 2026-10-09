@@ -1,0 +1,5 @@
+tools/config.local.json
+tools/sync.log
+tools/*.log
+supabase/.temp
+supabase/
