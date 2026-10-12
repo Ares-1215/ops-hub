@@ -2,7 +2,7 @@
 <title>當日快照｜運務資料中樞</title><link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
 <body><main>
 <h1 class="pg">當日快照</h1><p class="sub">一天的全部讀數，對照前 4 週同星期平均；往下看「為什麼」與清單。</p>
-<div class="bar"><label>日期 <select id="day"></select></label><button id="prev">‹ 前一天</button><button id="next">後一天 ›</button><label>單價 <input id="price" type="number" step="0.1" style="width:70px"> 元/km</label><span class="note" id="note"></span></div>
+<div class="bar"><label>日期 <select id="day"></select></label><button id="prev">‹ 前一天</button><button id="next">後一天 ›</button><a href="price.html" class="note">單價來源 →</a><span class="note" id="note"></span></div>
 <div class="card"><h3>結論</h3><ul class="brief" id="brief"></ul></div>
 <h2>指標 <span class="small muted" id="snapTitle"></span></h2>
 <div class="tiles" id="tiles"></div>
@@ -12,7 +12,7 @@
 <h2>清單 <span class="small muted">可篩選、匯 Excel；點班次／站名可開該頁</span></h2>
 <div class="bar"><select id="dkind"><option value="low_loads">低載櫃（≤55%）</option><option value="ot_trips">加班／追加櫃</option><option value="idle_trips">空櫃班次</option><option value="ot_dirs">加班方向（83）</option><option value="merge_pairs">併櫃候選</option></select><input id="dq" type="search" placeholder="篩選（站名／班次／車頭…）"><button id="dxls">⬇ Excel</button><span class="note" id="dcount"></span></div>
 <div class="scroll" id="dtable"></div>
-<p class="note">口徑：空駛率＝(空櫃里程＋空車頭里程)/實際里程；每千件里程＝實際里程/件數×1000；估算幹線運輸件成本＝實際里程×單價/件數（單價預設 23 元/km，來自 9 月件成本分析的實測）；低載＝發送積載率 0&lt;x≤55%；加班台數＝83 報表六欄非空格數；空櫃班次＝運行表班次對應主檔名稱含「空櫃/空車」。</p>
+<p class="note">口徑：空駛率＝(空櫃里程＋空車頭里程)/實際里程；每千件里程＝實際里程/件數×1000；估算幹線運輸件成本＝實際里程×單價/件數（單價依「單價校正」頁：該月 Excel 實際 → 626 → 沿用，手動時固定）；低載＝發送積載率 0&lt;x≤55%；加班台數＝83 報表六欄非空格數；空櫃班次＝運行表班次對應主檔名稱含「空櫃/空車」。</p>
 </main>
 <script>
 const DCOLS={idle_trips:[['truck','車頭'],['code','班次'],['name','名稱'],['from','起站'],['to','迄站'],['dep','規定離站'],['arr','規定進站'],['km','里程',1],['wait','等待分']],
@@ -22,13 +22,13 @@ const DCOLS={idle_trips:[['truck','車頭'],['code','班次'],['name','名稱'],
  merge_pairs:[['mode','模式'],['from','起站'],['keep_name','保留班次'],['load_keep','保留積載',1],['to1','保留迄站'],['cut_name','併入班次'],['load_cut','併入積載',1],['to2','併入迄站'],['sum','合計',1],['delay_min','延後分',1],['cut_km','省km',1]]};
 let DETAIL={},DROWS=[];
 (async()=>{if(!shell('day.html'))return;await loadRows();const sel=$('#day');ROWS.slice().reverse().forEach(r=>{const o=document.createElement('option');o.value=r.day;o.textContent=iso(r.day)+'（'+r.dow+'）';sel.appendChild(o)});
- $('#price').value=PRICE();$('#price').onchange=()=>{try{localStorage.setItem('nx_price',$('#price').value)}catch(e){}sessionStorage.removeItem('nx_kpi');location.reload()};
+ 
  const q=qs('d');sel.value=q&&BY[q]?q:ROWS[ROWS.length-1].day;if(qs('k'))$('#dkind').value=qs('k');
  sel.onchange=()=>{history.replaceState(null,'','day.html?d='+sel.value);render()};$('#prev').onclick=()=>{const i=ROWS.findIndex(r=>r.day===sel.value);if(i>0){sel.value=ROWS[i-1].day;sel.onchange()}};$('#next').onclick=()=>{const i=ROWS.findIndex(r=>r.day===sel.value);if(i<ROWS.length-1){sel.value=ROWS[i+1].day;sel.onchange()}};
  $('#dkind').onchange=loadDetail;$('#dq').oninput=renderD;$('#dxls').onclick=()=>exportXlsx(DCOLS[$('#dkind').value].map(c=>[c[0],c[1]]),DROWS,`${$('#dkind').value}_${sel.value}`);render()})();
 function render(){const day=$('#day').value;const d=BY[day];const base=baseline(day);$('#snapTitle').textContent=iso(day)+'（'+d.dow+'）　對照：前 4 週同星期平均（'+base.map(b=>iso(b.day).slice(5)).join('、')+'）';
  $('#brief').innerHTML=briefing(day).map(s=>`<li>${s}</li>`).join('')||'<li class="muted">無基準可比</li>';
- $('#tiles').innerHTML=KPIS.map(([k])=>tile(k,d[k],avgOf(base,k),k==='est_cost')).join('');
+ $('#tiles').innerHTML=KPIS.map(([k])=>tile(k,d[k],avgOf(base,k),k==='est_cost',k==='est_cost'?`單價 ${fmt(d.price,2)}（${d.price_src}）`:'')).join('');
  const a=attribution(day);if(a){const rows=[['件數效應（件數變了，固定里程被攤薄或攤厚）',a.vol],['空駛里程效應（空櫃＋空車頭里程變了）',a.empty],['重櫃里程效應（載貨里程變了＝班次數×里程）',a.loaded],['殘差（里程三段加總與實際里程的差）',a.resid]];
   $('#attr').innerHTML=`<h3>每千件里程 ${fmt(d.km_per_kpiece,1)} vs 基準 ${fmt(a.base.km_per_kpiece,1)}：差 <b class="${a.total>0?'up':'down'}">${a.total>0?'+':''}${a.total.toFixed(1)} km/千件</b></h3><div class="sub">換算：${a.total>0?'+':''}${(a.total*a.price/1000).toFixed(2)} 元/件（單價 ${a.price}）≈ ${fmt(a.total*a.price/1000*a.pieces)} 元/日</div><table><thead><tr><th>來源</th><th class="num">km/千件</th><th class="num">元/件</th><th class="num">佔變動量</th></tr></thead><tbody>${(()=>{const tot=rows.reduce((x,[,v])=>x+Math.abs(v),0);return rows.map(([n,v])=>`<tr><td style="white-space:normal">${n}</td><td class="num ${v>0?'up':'down'}">${v>0?'+':''}${v.toFixed(1)}</td><td class="num">${(v*a.price/1000).toFixed(2)}</td><td class="num">${tot?Math.round(Math.abs(v)/tot*100)+'%':'—'}</td></tr>`).join('')})()}</tbody></table><p class="note">歸因是精確拆解（三項加殘差＝差異），不是因果；重櫃里程多半由班次數與加班決定，看右表。</p>`}else $('#attr').innerHTML='<p class="note">件數或基準不足，無法歸因。</p>';
  const DRV=[['pieces','件數'],['trips206','運行表班次'],['trucks41','車頭數'],['seal_ot','加班封櫃'],['ot_total','加班台數'],['ot_net_south','南向淨額'],['low55_n','低載櫃'],['avg_load','平均積載率'],['idle_trips','空櫃班次'],['idle_km','無效里程'],['km_empty_box','空櫃里程'],['km_empty_head','空車頭里程'],['km_loaded','重櫃里程'],['km_plan','運行表里程'],['arrive_ontime_rate','到著準點率'],['unload_med_min','卸時中位']];

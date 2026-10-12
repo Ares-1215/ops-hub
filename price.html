@@ -1,0 +1,30 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>單價校正｜運務資料中樞</title><link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
+<body><main>
+<h1 class="pg">單價校正</h1><p class="sub">「估算幹線運輸件成本」用的 元/公里 從哪裡來。自動模式：該月有 Excel 就用 Excel，沒有就用 626，再沒有就沿用最近一個月；手動模式：固定一個數。</p>
+<div class="card"><div class="bar">
+ <label>模式 <select id="mode"><option value="auto">自動（Excel → 626 → 沿用）</option><option value="manual">手動固定</option></select></label>
+ <label>手動值 <input id="manual" type="number" step="0.01" style="width:80px"> 元/km</label>
+ <button id="save" class="pri">套用</button><span class="note" id="saved"></span></div>
+ <div class="insight" id="now"></div></div>
+<h2>每月單價 <span class="small muted">Excel＝件成本分析.xlsx 的 Σ運輸費用 ÷ Σ41 實際里程；626＝勾選科目「運務中心計」÷ Σ41 實際里程</span></h2>
+<div class="scroll" id="months" style="max-height:none"></div>
+<h2>626 科目組合 <span class="small muted">勾選哪些科目算「幹線運輸費用」（預設 S176 聯運費，待財務確認）</span></h2>
+<div class="card"><div class="bar"><input id="cq" type="search" placeholder="篩科目"><button id="csave" class="pri">儲存科目組合</button><span class="note">右欄顯示各科目「運務中心計」最近一個整月金額，拿來跟 Excel 同月的運輸費用對，最接近的就是對應科目</span></div><div class="scroll" id="codes" style="max-height:420px"></div></div>
+<h2>Excel 來源</h2>
+<div class="card"><p>把每月拿到的「件成本分析.xlsx」放進 <code>C:\Users\26516\ops-hub\tools\cost\</code>，同步時會自動讀（表頭要有「日期／件數／運輸費用」）。新檔會覆蓋舊檔同一天的數字。</p><div id="src"></div></div>
+</main>
+<script>
+(async()=>{if(!shell('price.html'))return;await loadRows();const C=CALIB||{};$('#mode').value=PRICE_MODE();$('#manual').value=PRICE();
+ $('#save').onclick=()=>{try{localStorage.setItem('nx_price_mode',$('#mode').value);localStorage.setItem('nx_price',$('#manual').value)}catch(e){}sessionStorage.removeItem('nx_kpi');$('#saved').textContent='已套用，各頁重新整理後生效';render()};
+ const last=ROWS[ROWS.length-1];const pr=priceFor(last.day);$('#now').innerHTML=`目前 ${iso(last.day)} 用的單價：<b>${fmt(pr.price,2)} 元/km</b>（來源：${pr.src}）`;
+ const months=new Set([...Object.keys(C.excel?.months||{}),...Object.keys(C.c626?.months||{}),...Object.keys(C.km_month||{})]);const ms=[...months].filter(m=>m>='202604').sort();
+ function render(){$('#months').innerHTML='<table><thead><tr><th>月份</th><th class="num">41 實際里程</th><th class="num">Excel 運輸費用</th><th class="num">Excel 天數</th><th class="num">Excel 單價</th><th class="num">626 選定科目金額</th><th class="num">626 單價</th><th>自動模式採用</th></tr></thead><tbody>'+ms.map(m=>{const ex=C.excel?.months?.[m];const p6=price626(m);const c6=C.c626?.months?.[m];const cost6=c6?CODES626().reduce((a,c)=>a+((c6[c]||[0,0])[0]),0):null;const use=priceFor(m+'15');return `<tr><td>${m.slice(0,4)}-${m.slice(4)}</td><td class="num">${fmt(C.km_month?.[m])}</td><td class="num">${fmt(ex?.cost)}</td><td class="num">${ex?.days??'—'}</td><td class="num"><b>${fmt(ex?.price,2)}</b></td><td class="num">${fmt(cost6)}</td><td class="num">${fmt(p6,2)}</td><td>${fmt(use.price,2)}（${use.src}）</td></tr>`}).join('')+'</tbody></table>'}
+ render();
+ const lastFull=[...ms].reverse().find(m=>C.c626?.months?.[m]&&C.excel?.months?.[m]?.days>=28)||[...ms].reverse().find(m=>C.c626?.months?.[m]);const sel=new Set(CODES626());
+ const codes=Object.entries(C.codes||{}).map(([c,n])=>({c,n,amt:(C.c626?.months?.[lastFull]?.[c]||[0,0])[0],all:(C.c626?.months?.[lastFull]?.[c]||[0,0])[1]})).sort((a,b)=>b.amt-a.amt);
+ const exc=C.excel?.months?.[lastFull]?.cost;
+ const rc=()=>{const q=$('#cq').value.trim().toLowerCase();$('#codes').innerHTML=`<p class="note" style="padding:6px 10px">比較月份 ${lastFull?lastFull.slice(0,4)+'-'+lastFull.slice(4):'—'}：Excel 運輸費用 <b>${fmt(exc)}</b>；目前勾選合計 <b id="selsum">${fmt(codes.filter(x=>sel.has(x.c)).reduce((a,x)=>a+x.amt,0))}</b></p><table><thead><tr><th></th><th>科目</th><th>名稱</th><th class="num">運務中心計</th><th class="num">全公司計</th></tr></thead><tbody>`+codes.filter(x=>!q||(x.c+x.n).toLowerCase().includes(q)).map(x=>`<tr><td><input type="checkbox" value="${x.c}" ${sel.has(x.c)?'checked':''}></td><td>${x.c}</td><td>${esc(x.n)}</td><td class="num">${fmt(x.amt)}</td><td class="num">${fmt(x.all)}</td></tr>`).join('')+'</tbody></table>';$$('#codes input').forEach(i=>i.onchange=()=>{i.checked?sel.add(i.value):sel.delete(i.value);$('#selsum').textContent=fmt(codes.filter(x=>sel.has(x.c)).reduce((a,x)=>a+x.amt,0))})};
+ rc();$('#cq').oninput=rc;$('#csave').onclick=()=>{try{localStorage.setItem('nx_626_codes',JSON.stringify([...sel]))}catch(e){}sessionStorage.removeItem('nx_kpi');render();$('#saved').textContent='科目組合已儲存（只存在這台瀏覽器）'};
+ $('#src').innerHTML=(C.excel?.sources||[]).length?'<ul>'+C.excel.sources.map(s=>`<li>${esc(s.file||s.error)}${s.rows?`：${s.rows} 天（檔案時間 ${esc(s.mtime)}）`:''}</li>`).join('')+'</ul>':'<p class="note">尚未放入任何 Excel</p>'})();
+</script></body></html>
