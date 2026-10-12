@@ -1,0 +1,46 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>站所｜運務資料中樞</title><link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
+<body><main>
+<div id="list">
+<h1 class="pg">站所</h1><p class="sub" id="lsub">各站近 28 天平日平均：發送封櫃、低載、加班、空櫃班次、到著準點、件數。點站名看該站逐日。</p>
+<div class="bar"><input id="q" type="search" placeholder="站名／代號／分區"><label>排序 <select id="sort"><option value="seals">發送封櫃數</option><option value="low_rate">低載率</option><option value="ot">加班櫃</option><option value="idle">空櫃班次</option><option value="ontime_rate">到著準點率（低→高）</option><option value="pieces">件數</option></select></label><button id="xls">⬇ Excel</button></div>
+<div class="scroll" id="tbl" style="max-height:none"></div>
+</div>
+<div id="one" class="hide">
+<h1 class="pg" id="stTitle"></h1><p class="sub" id="stSub"></p>
+<div class="bar"><a href="station.html">‹ 站所清單</a><label>期間 <input id="from" type="date"> ～ <input id="to" type="date"></label><button data-r="28">近 4 週</button><button data-r="56">近 8 週</button><button data-r="999">全部</button></div>
+<div class="tiles" id="stTiles"></div>
+<div class="insight" id="stIns"></div>
+<div class="grid2" style="margin-top:10px">
+  <div class="card"><h3>發送：封櫃數、低載櫃、加班櫃</h3><div id="c1"></div></div>
+  <div class="card"><h3>發送：平均積載率 %</h3><div id="c2"></div></div>
+  <div class="card"><h3>運行表：起站班次、空櫃班次</h3><div id="c3"></div></div>
+  <div class="card"><h3>到著：到著櫃數、準點率 %、卸時中位</h3><div id="c4"></div></div>
+</div>
+<h2>這站的班次 <span class="small muted">近 4 週同星期常態低載的正班次（減開候選）</span></h2>
+<div class="scroll" id="stTrips" style="max-height:420px"></div>
+<h2>逐日</h2><div class="scroll" id="stTbl"></div>
+</div>
+</main>
+<script>
+(async()=>{if(!shell('station.html'))return;const code=qs('code');if(code){await one(code)}else await list()})();
+async function list(){try{const j=await api({action:'meta',k:'station_index'});const idx=j.v||{};$('#lsub').textContent=`各站${idx.window||'近 28 天平日平均'}（資料到 ${iso(idx.last_day||'')}）。點站名看該站逐日。`;const rows=Object.entries(idx.stations||{}).map(([c,s])=>({code:c,...s,low_rate:s.seals?s.low55/s.seals*100:null}));
+ const render=()=>{const q=$('#q').value.trim().toLowerCase();const k=$('#sort').value;const rs=rows.filter(r=>!q||(r.code+r.name+r.region).toLowerCase().includes(q)).sort((a,b)=>k==='ontime_rate'?((a[k]??999)-(b[k]??999)):((b[k]??-1)-(a[k]??-1)));
+  $('#tbl').innerHTML='<table><thead><tr><th>站所</th><th>分區</th><th class="num">件數/日</th><th class="num">封櫃/日</th><th class="num">低載櫃/日</th><th class="num">低載率</th><th class="num">加班櫃/日</th><th class="num">平均積載</th><th class="num">起站班次/日</th><th class="num">空櫃班次/日</th><th class="num">到著櫃/日</th><th class="num">到著準點率</th><th class="num">卸時中位</th></tr></thead><tbody>'+rs.map(r=>`<tr><td><a href="station.html?code=${r.code}">${r.code} ${esc(r.name)}</a></td><td class="muted">${esc(r.region)}</td><td class="num">${fmt(r.pieces)}</td><td class="num">${fmt(r.seals,1)}</td><td class="num">${fmt(r.low55,1)}</td><td class="num ${r.low_rate>25?'up':''}">${fmt(r.low_rate,0)}%</td><td class="num">${fmt(r.ot,1)}</td><td class="num">${fmt(r.avg_load,1)}</td><td class="num">${fmt(r.trips,1)}</td><td class="num">${fmt(r.idle,1)}</td><td class="num">${fmt(r.arr_n,1)}</td><td class="num ${r.ontime_rate!=null&&r.ontime_rate<50?'up':''}">${fmt(r.ontime_rate,0)}%</td><td class="num">${fmt(r.unload_med)}</td></tr>`).join('')+'</tbody></table>';
+  $('#xls').onclick=()=>exportXlsx([['code','代號'],['name','站名'],['region','分區'],['pieces','件數/日'],['seals','封櫃/日'],['low55','低載櫃/日'],['low_rate','低載率%'],['ot','加班櫃/日'],['avg_load','平均積載'],['trips','起站班次/日'],['idle','空櫃班次/日'],['arr_n','到著櫃/日'],['ontime_rate','到著準點率%'],['unload_med','卸時中位']],rs,'站所總表')};
+ $('#q').oninput=render;$('#sort').onchange=render;render()}catch(e){$('#tbl').innerHTML='<p class="note">'+esc(e.message)+'</p>'}}
+let ST=null;
+async function one(code){$('#list').classList.add('hide');$('#one').classList.remove('hide');try{const j=await api({action:'meta',k:'st:'+code});ST=j.v;if(!ST){$('#stTitle').textContent=code+'（查無資料）';return}document.title=`${ST.name}｜站所｜運務資料中樞`;$('#stTitle').innerHTML=`<span class="rid">${code}</span> ${esc(ST.name)} <span class="small muted">${esc(ST.region)}</span>`;
+ const days=Object.keys(ST.days).sort();$('#to').value=iso(days[days.length-1]);$('#from').value=iso(days[Math.max(0,days.length-56)]);$$('button[data-r]').forEach(b=>b.onclick=()=>{$('#from').value=iso(days[Math.max(0,days.length-(+b.dataset.r))]);draw()});$('#from').onchange=$('#to').onchange=draw;draw();
+ try{const t=await api({action:'meta',k:'trip_dow'});const td=t.v||{};const mine=Object.entries(td).filter(([c,x])=>x.from.startsWith(code));const cand=[];mine.forEach(([c,x])=>{DOWS.split('').forEach(w=>{const d=x.dow?.[w];if(d&&x.ot_share<=0.2&&d.n4>=3&&d.low55_4>=3)cand.push({code:c,name:x.name,to:x.to,dir:x.dir,km:x.km,w,low:`${d.low55_4}/${d.n4}`,avg:d.avg4})})});cand.sort((a,b)=>(b.km||0)-(a.km||0));
+  $('#stTrips').innerHTML=`<p class="note" style="padding:6px 10px">本站共 ${mine.length} 個班次有封櫃紀錄；其中 ${cand.length} 個「班次×星期」符合常態低載（≤55% 且近 4 週同星期 ≥3 次、非加班）。</p>`+(cand.length?'<table><thead><tr><th>班次</th><th>迄站</th><th>方向</th><th>星期</th><th class="num">低載/出現</th><th class="num">平均積載</th><th class="num">里程</th></tr></thead><tbody>'+cand.map(r=>`<tr><td>${tripLink(r.code,r.code+' '+r.name)}</td><td>${stLink(r.to)}</td><td>${r.dir}</td><td>${r.w}</td><td class="num">${r.low}</td><td class="num">${fmt(r.avg,1)}</td><td class="num">${fmt(r.km)}</td></tr>`).join('')+'</tbody></table>':'')}catch(e){}
+ }catch(e){$('#stTitle').textContent=e.message}}
+function draw(){const f=ymd($('#from').value),t=ymd($('#to').value);const days=Object.keys(ST.days).sort().filter(d=>d>=f&&d<=t);const l=days.map(d=>{const v=ST.days[d];return {day:d,dow:dowOf(d),...v,low_rate:v.seals?v.low55/v.seals*100:null,ontime_rate:v.arr_judged?v.arr_ontime/v.arr_judged*100:null}});
+ const wk=l.filter(r=>'一二三四五'.includes(r.dow));const a=k=>avgOf(wk,k);const prev=Object.keys(ST.days).sort().filter(d=>d<f).slice(-wk.length).map(d=>{const v=ST.days[d];return {...v,dow:dowOf(d),low_rate:v.seals?v.low55/v.seals*100:null,ontime_rate:v.arr_judged?v.arr_ontime/v.arr_judged*100:null}}).filter(r=>'一二三四五'.includes(r.dow));const p=k=>avgOf(prev,k);
+ const T=[['pieces','件數/日',0,0],['seals','封櫃/日',1,0],['low55','低載櫃/日',1,-1],['low_rate','低載率 %',1,-1],['ot','加班櫃/日',1,-1],['avg_load','平均積載率 %',1,1],['trips','起站班次/日',1,0],['idle','空櫃班次/日',1,-1],['arr_n','到著櫃/日',1,0],['ontime_rate','到著準點率 %',1,1],['unload_med','卸時中位 分',0,-1]];
+ $('#stTiles').innerHTML=T.map(([k,n,dec,dir])=>{const v=a(k),b=p(k);const pc=delta(v,b);return `<div class="tile"><div class="k">${n}</div><div class="v">${fmt(v,dec)}</div><div class="d">${pc==null?'':`<span class="${dir===0?'':(pc*dir>0?'down':'up')}">${pc>0?'▲':'▼'}${Math.abs(pc).toFixed(1)}%</span> <span class="muted">vs 前一段 ${fmt(b,dec)}</span>`}</div></div>`}).join('');
+ $('#stSub').textContent=`${iso(f)} ～ ${iso(t)}，平日 ${wk.length} 天平均；對照前一段同長度期間`;
+ const lr=a('low_rate'),ot=a('ot'),idle=a('idle'),onr=a('ontime_rate');$('#stIns').innerHTML=`${esc(ST.name)}：平日每天發送 <b>${fmt(a('seals'),1)}</b> 櫃，低載率 <b>${fmt(lr,0)}%</b>${lr>25?'（偏高，看下方減開候選）':''}，加班 <b>${fmt(ot,1)}</b> 櫃/日，空櫃班次 <b>${fmt(idle,1)}</b> 班/日；到著準點率 <b>${fmt(onr,0)}%</b>${onr!=null&&onr<50?'（偏低）':''}。`;
+ chart('#c1',l,[{k:'seals',n:'封櫃',c:'var(--blue)',type:'bar'},{k:'low55',n:'低載櫃',c:'var(--red)',type:'bar'},{k:'ot',n:'加班櫃',c:'var(--orange)',type:'bar'}],{h:200});chart('#c2',l,[{k:'avg_load',n:'平均積載率',c:'var(--acc)'}],{zero:false,h:200});chart('#c3',l,[{k:'trips',n:'起站班次',c:'var(--blue)',type:'bar'},{k:'idle',n:'空櫃班次',c:'var(--grey)',type:'bar'}],{h:200});chart('#c4',l,[{k:'arr_n',n:'到著櫃',c:'var(--blue)',type:'bar'},{k:'ontime_rate',n:'準點率 %',c:'var(--acc)',axis:'r'},{k:'unload_med',n:'卸時中位',c:'var(--orange)',axis:'r'}],{h:200});
+ $('#stTbl').innerHTML='<table><thead><tr><th>日期</th><th>週</th><th class="num">件數</th><th class="num">封櫃</th><th class="num">低載</th><th class="num">加班</th><th class="num">積載</th><th class="num">起站班次</th><th class="num">空櫃班次</th><th class="num">到著</th><th class="num">準點率</th><th class="num">卸時</th></tr></thead><tbody>'+l.slice().reverse().map(r=>`<tr class="${r.dow==='六'||r.dow==='日'?'we':''}"><td>${dayLink(r.day)}</td><td>${r.dow}</td><td class="num">${fmt(r.pieces)}</td><td class="num">${fmt(r.seals)}</td><td class="num">${fmt(r.low55)}</td><td class="num">${fmt(r.ot)}</td><td class="num">${fmt(r.avg_load,1)}</td><td class="num">${fmt(r.trips)}</td><td class="num">${fmt(r.idle)}</td><td class="num">${fmt(r.arr_n)}</td><td class="num">${fmt(r.ontime_rate,0)}</td><td class="num">${fmt(r.unload_med)}</td></tr>`).join('')+'</tbody></table>'}
+</script></body></html>

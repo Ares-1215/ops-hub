@@ -108,6 +108,8 @@ def build():
         log("build_dataset ERR: " + r.stderr[-500:])
     r2 = subprocess.run([PY, "build_tools.py"], cwd=ENGINE, capture_output=True, text=True, encoding="utf-8", errors="replace")
     log("build_tools: " + (r2.stdout.strip().splitlines() or ["?"])[-1] + ("" if not r2.returncode else " ERR " + r2.stderr[-300:]))
+    r3 = subprocess.run([PY, "build_stations.py"], cwd=ENGINE, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    log("build_stations: " + (r3.stdout.strip().splitlines() or ["?"])[-1] + ("" if not r3.returncode else " ERR " + r3.stderr[-300:]))
     for b in ("build_dashboard.py", "build_proposal.py", "build_handbook.py"):
         subprocess.run([PY, b], cwd=ENGINE, capture_output=True)
     subprocess.run(["node", "html_to_docx.js", "out/運務處資料分析提案.html", "out/運務處資料分析提案.docx"], cwd=ENGINE, capture_output=True)
@@ -266,6 +268,23 @@ def upload_trip_hist(st):
     log(f"trip_hist 上傳 {n} 班次")
 
 
+def upload_stations(st):
+    d = ENGINE / "data" / "stations"
+    if not d.exists():
+        return
+    st.setdefault("stations", {})
+    n = 0
+    for p in sorted(d.glob("*.json")):
+        b = p.read_bytes(); h = md5(b)
+        if st["stations"].get(p.stem) == h:
+            continue
+        edge({"action": "ingest_meta", "k": "st:" + p.stem, "v": json.loads(b.decode("utf-8"))}); st["stations"][p.stem] = h; n += 1
+    idx = ENGINE / "data" / "station_index.json"
+    if idx.exists():
+        edge({"action": "ingest_meta", "k": "station_index", "v": json.loads(idx.read_text(encoding="utf-8"))})
+    log(f"stations 上傳 {n} 站")
+
+
 def upload_meta(cov):
     d = ENGINE / "data"
     for k, f in (("trip_km", "trip_km.json"), ("idle_trips", "idle_trips.json"), ("pair_low", "pair_low.json"), ("trip_dow", "trip_dow.json"), ("ot_agg", "ot_agg.json")):
@@ -347,7 +366,7 @@ def main():
     upload_daily(); upload_detail(st); save_state(st)
     upload_raw(st); save_state(st)
     upload_log(st); save_state(st)
-    cov = upload_coverage(); upload_meta(cov); upload_trip_hist(st); save_state(st); upload_docs(st); save_state(st)
+    cov = upload_coverage(); upload_meta(cov); upload_trip_hist(st); save_state(st); upload_stations(st); save_state(st); upload_docs(st); save_state(st)
     log(f"=== 完成 {time.time() - t0:.0f}s ===")
 
 

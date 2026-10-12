@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>運務資料中樞</title>
+<meta name="description" content="新竹物流運務處資料中樞：每日運行狀況剖析、報表資料倉、更新狀態、文件">
+<style>
+:root{--bg:#f5f6f4;--fg:#1d2621;--muted:#69726d;--card:#ffffff;--line:#dde2de;--acc:#1f6f4a;--acc2:#e6f2ea;--red:#c0392b;--orange:#d9822b;--blue:#2d5f9e;--grey:#9aa39e;--code:#eef1ee;--warnbg:#fff4e5;--warn:#9a4b00;--shadow:0 1px 2px rgba(0,0,0,.05)}
+:root[data-theme=dark]{--bg:#121719;--fg:#e4e9e6;--muted:#97a29c;--card:#1a2124;--line:#2b353a;--acc:#6fcf97;--acc2:#1e3a2b;--red:#ff7b6b;--orange:#f5a25d;--blue:#7fb0ff;--grey:#6f7a75;--code:#222b2f;--warnbg:#3a2a12;--warn:#f0b56a;--shadow:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#121719;--fg:#e4e9e6;--muted:#97a29c;--card:#1a2124;--line:#2b353a;--acc:#6fcf97;--acc2:#1e3a2b;--red:#ff7b6b;--orange:#f5a25d;--blue:#7fb0ff;--grey:#6f7a75;--code:#222b2f;--warnbg:#3a2a12;--warn:#f0b56a;--shadow:none}}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,"Microsoft JhengHei","Noto Sans TC",sans-serif}
+a{color:var(--acc)}button,select,input{font:inherit;color:var(--fg)}
+button{padding:6px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);cursor:pointer}button.pri{background:var(--acc);color:#fff;border-color:var(--acc)}button:disabled{opacity:.5;cursor:default}
+select,input[type=text],input[type=password],input[type=date],input[type=search]{padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.hide{display:none!important}.muted{color:var(--muted)}.small{font-size:12px}.up{color:var(--red)}.down{color:var(--acc)}.num{text-align:right;font-variant-numeric:tabular-nums}
+/* login */
+#login{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 26px;width:min(380px,100%);box-shadow:var(--shadow)}
+.login-card h1{margin:0 0 4px;font-size:21px}.login-card p{margin:0 0 20px;color:var(--muted);font-size:13px}.login-card label{display:block;margin:10px 0 4px;font-size:13px;color:var(--muted)}.login-card input{width:100%}
+.err{color:var(--red);font-size:13px;min-height:18px;margin-top:8px}
+/* layout */
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:8px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+header h1{font-size:17px;margin:0 8px 0 0}nav.tabs{display:flex;gap:4px}nav.tabs button{border:0;background:transparent;padding:6px 12px;border-radius:8px;color:var(--muted)}nav.tabs button.on{background:var(--acc2);color:var(--acc);font-weight:600}
+header .sp{flex:1}header .badge{font-size:12px;color:var(--muted);background:var(--code);padding:2px 8px;border-radius:999px}
+main{padding:14px 16px 60px;max-width:1360px;margin:0 auto}h2{font-size:16px;margin:20px 0 8px;border-left:4px solid var(--acc);padding-left:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}h2 .small{font-weight:normal}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 10px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}.tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:var(--shadow)}.tile .k{color:var(--muted);font-size:12px}.tile .v{font-size:22px;font-weight:600;margin:2px 0}.tile .d{font-size:12px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:var(--shadow)}.card h3{margin:0 0 4px;font-size:14px}.card .sub{color:var(--muted);font-size:12px}
+svg.ch{width:100%;height:auto;display:block}.axis{stroke:var(--line)}.lbl{fill:var(--muted);font-size:10px}.legend span{display:inline-block;margin-right:12px;font-size:12px}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:middle}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{border-bottom:1px solid var(--line);padding:4px 7px;text-align:left;white-space:nowrap;vertical-align:top}th{background:var(--acc2);position:sticky;top:0;z-index:1}td.num,th.num{text-align:right}
+.scroll{overflow:auto;max-height:520px;background:var(--card);border:1px solid var(--line);border-radius:10px}.sel{background:var(--acc2)}tr.we td{color:var(--muted)}
+.chips span{display:inline-block;background:var(--code);border-radius:6px;padding:0 6px;margin:2px;font-size:12px}
+.banner{border-radius:10px;padding:10px 14px;margin:8px 0;border:1px solid var(--line);background:var(--card)}.banner.ok{border-color:var(--acc);background:var(--acc2)}.banner.warn{border-color:var(--warn);background:var(--warnbg)}
+.split{display:grid;grid-template-columns:300px 1fr;gap:12px}@media(max-width:900px){.split{grid-template-columns:1fr}}
+.list{background:var(--card);border:1px solid var(--line);border-radius:10px;max-height:70vh;overflow:auto}.list .grp{padding:6px 10px;font-size:12px;color:var(--muted);background:var(--code);position:sticky;top:0}.list .it{padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--line);display:flex;gap:6px;align-items:baseline}.list .it:hover,.list .it.on{background:var(--acc2)}.list .rid{font-family:ui-monospace,monospace;color:var(--acc);min-width:46px}.list .st{color:var(--orange);font-size:11px}
+.star{color:var(--orange)}dl.kv{display:grid;grid-template-columns:80px 1fr;gap:2px 10px;margin:6px 0;font-size:13px}dl.kv dt{color:var(--muted)}dl.kv dd{margin:0}
+code{background:var(--code);padding:0 4px;border-radius:4px;font-family:ui-monospace,Consolas,monospace;font-size:12px}pre{background:var(--code);padding:10px;border-radius:8px;overflow:auto;font-size:12px}
+.doccard{display:flex;gap:12px;align-items:center;padding:12px 14px}.doccard .ic{font-size:28px}.doccard h3{margin:0}.doccard p{margin:2px 0 0;color:var(--muted);font-size:12px}
+iframe.doc{width:100%;height:80vh;border:1px solid var(--line);border-radius:10px;background:#fff}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--acc);border-radius:50%;animation:sp 1s linear infinite;vertical-align:middle}@keyframes sp{to{transform:rotate(360deg)}}
+.note{color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div id="login">
+  <form class="login-card" id="loginForm">
+    <h1>運務資料中樞</h1>
+    <p>新竹物流 運務處 · 每日運行狀況剖析 / 報表資料倉 / 更新狀態</p>
+    <label>帳號</label><input id="liEmp" type="text" autocomplete="username" inputmode="numeric" required>
+    <label>密碼</label><input id="liPw" type="password" autocomplete="current-password" required>
+    <div class="err" id="liErr"></div>
+    <button class="pri" id="liBtn" style="width:100%;margin-top:6px">登入</button>
+  </form>
+</div>
+
+<div id="app" class="hide">
+<header>
+  <h1>運務資料中樞</h1>
+  <nav class="tabs" id="tabs">
+    <button data-t="dash" class="on">看板</button><button data-t="tools">班次工具</button><button data-t="data">資料倉</button><button data-t="status">更新狀態</button><button data-t="docs">文件</button>
+  </nav>
+  <span class="sp"></span>
+  <span class="badge" id="syncBadge">—</span>
+  <button id="themeBtn" title="深淺色">◐</button>
+  <button id="logoutBtn">登出</button>
+</header>
+<main>
+<!-- ================= 看板 ================= -->
+<section id="t-dash">
+  <div class="bar">
+    <label>日期 <select id="day"></select></label>
+    <label>星期 <select id="dow"><option value="">全部</option><option>一</option><option>二</option><option>三</option><option>四</option><option>五</option><option>六</option><option>日</option></select></label>
+    <label>期間 <input id="from" type="date"> ～ <input id="to" type="date"></label>
+    <button id="csvBtn">⬇ 逐日 CSV</button>
+    <span class="note" id="dashNote"></span>
+  </div>
+  <h2>當日快照 <span class="small muted" id="snapTitle"></span></h2>
+  <div class="tiles" id="tiles"></div>
+  <h2>趨勢</h2>
+  <div class="grid2">
+    <div class="card"><h3>件數 vs 實際里程</h3><div class="sub">件數：606 所合計；里程：41 實際里程合計（公里）</div><div id="c1"></div></div>
+    <div class="card"><h3>每千件里程 與 空駛率</h3><div class="sub">件成本的兩個先行指標：里程量與空駛</div><div id="c2"></div></div>
+    <div class="card"><h3>加班台數 × 低載櫃數 × 每千件里程</h3><div class="sub">三線同步下降＝班次規模調整成功的訊號</div><div id="c3"></div></div>
+    <div class="card"><h3>空櫃班次數與無效里程</h3><div class="sub">206 運行表 × 班次主檔「空櫃/空車」× 113 班次里程（&lt;50 / 50–100 / 100–200 / 200+）</div><div id="c4"></div></div>
+    <div class="card"><h3>加班方向：南向 − 北向</h3><div class="sub">南向＝北→中＋北→南＋中→南；北向＝中→北＋南→北＋南→中</div><div id="c5"></div></div>
+    <div class="card"><h3>到著準點率與卸時中位數</h3><div class="sub">79 拆封櫃：進站 ≤ 規定進站＋15 分；卸時（分）</div><div id="c6"></div></div>
+  </div>
+  <h2>當日清單 <span class="small muted">空櫃班次 / 低載櫃 / 加班櫃 / 加班方向（可篩選、匯 Excel）</span></h2>
+  <div class="bar">
+    <select id="dkind"><option value="idle_trips">空櫃班次</option><option value="low_loads">低載櫃（≤55%）</option><option value="ot_trips">加班／追加櫃</option><option value="ot_dirs">加班方向（83）</option><option value="units">單位拆解（41）</option></select>
+    <input id="dq" type="search" placeholder="篩選（站名／班次／車頭…）">
+    <button id="dxls">⬇ Excel</button><span class="note" id="dcount"></span>
+  </div>
+  <div class="scroll" id="dtable"></div>
+  <h2>同量日比較 <span class="small muted">件數相近的兩天，差在哪裡？</span></h2>
+  <div class="bar"><label>A <select id="cmpA"></select></label><label>B <select id="cmpB"></select></label><button id="autoB">自動找最接近件數的一天</button></div>
+  <div class="scroll" id="cmpOut" style="max-height:none"></div>
+  <h2>逐日明細</h2>
+  <div class="scroll" id="tbl"></div>
+  <p class="note">口徑：空駛率＝(空櫃里程＋空車頭里程)/實際里程；每千件里程＝實際里程/件數×1000；低載＝發送積載率 0&lt;x≤55%；加班台數＝83 報表六欄非空格數；空櫃班次＝運行表班次代號對應主檔名稱含「空櫃」或「空車」；無效里程＝空櫃班次 × 113 班次里程中位數。週末以淡色標示。</p>
+</section>
+
+<!-- ================= 班次工具 ================= -->
+<section id="t-tools" class="hide">
+  <div class="bar" id="toolTabs">
+    <button data-tool="cut" class="pri">減開建議清單</button><button data-tool="merge">併櫃模擬</button><button data-tool="trip">班次體檢卡</button><button data-tool="ot">加班檢核</button><button data-tool="review">決策回看</button>
+  </div>
+
+  <!-- 減開建議清單 -->
+  <div id="tool-cut">
+    <div class="card">
+      <div class="bar">
+        <label>目標日 <input id="cutDay" type="date"></label>
+        <label>門檻 <select id="cutThr"><option value="55">≤55%</option><option value="50">≤50%</option></select></label>
+        <label>視窗 <select id="cutWin"><option value="4">近 4 週同星期</option><option value="8">近 8 週同星期</option><option value="all">全期同星期</option></select></label>
+        <label>至少 <input id="cutMin" type="number" value="3" min="1" max="30" style="width:60px"> 次</label>
+        <label>方向 <select id="cutDir"><option value="">全部</option><option>南向</option><option>北向</option><option>同區</option></select></label>
+        <label><input id="cutNoOt" type="checkbox" checked> 排除加班比 &gt;20% 的班次</label>
+        <label>單價 <input id="cutPrice" type="number" value="23" step="0.1" style="width:64px"> 元/km</label>
+        <input id="cutQ" type="search" placeholder="篩站名/班次">
+        <button id="cutRun" class="pri">產生清單</button>
+      </div>
+      <div class="bar">
+        <span id="cutFc" class="note"></span>
+      </div>
+    </div>
+    <div class="tiles" id="cutTiles" style="margin:10px 0"></div>
+    <div class="bar"><button id="cutAll">全選</button><button id="cutNone">全不選</button><button id="cutXls">⬇ Excel</button><input id="cutNote" type="text" placeholder="備註（給運指的說明）" style="flex:1;min-width:200px"><button id="cutSave" class="pri">登記採用（存入中樞）</button><span id="cutSaved" class="note"></span></div>
+    <div class="scroll" id="cutTable" style="max-height:60vh"></div>
+    <p class="note">規則：該班次在「視窗」內的同星期出現 ≥ 次數門檻，且發送積載率 ≤ 門檻的次數 ≥ 次數門檻，列為常態低載；預測件數＝近 4 週同星期件數平均；可省元/件＝里程 × 單價 ÷ 預測件數。清單是候選與證據，是否減開由運指依時效與客戶約定判斷。</p>
+  </div>
+
+  <!-- 併櫃模擬 -->
+  <div id="tool-merge" class="hide">
+    <div class="card"><div class="bar">
+      <label>日期 <select id="mgDay"></select></label>
+      <label>模式 <select id="mgMode"><option value="">全部</option><option value="A">A 同起站同迄站</option><option value="B">B 同起站、迄站同區</option></select></label>
+      <label>合計積載 ≤ <input id="mgCap" type="number" value="100" style="width:60px">%</label>
+      <label>延後 ≤ <input id="mgDelay" type="number" value="120" style="width:60px"> 分</label>
+      <label><input id="mgReg" type="checkbox"> 只看兩邊都是正班</label>
+      <label>方向 <select id="mgDir"><option value="">全部</option><option>南向</option><option>北向</option><option>同區</option></select></label>
+      <input id="mgQ" type="search" placeholder="篩站名/班次"><button id="mgRun" class="pri">模擬</button>
+    </div></div>
+    <div class="tiles" id="mgTiles" style="margin:10px 0"></div>
+    <div class="bar"><button id="mgXls">⬇ Excel</button><button id="mgSave" class="pri">登記採用的配對</button><span id="mgSaved" class="note"></span></div>
+    <div class="scroll" id="mgTable" style="max-height:60vh"></div>
+    <p class="note">A：路線完全相同，貨併到保留班次的櫃，少開一趟。B：同起站、迄站同一區但不同站，併成一車順路多卸一站，後一站會晚到，需運指評估時效。延後＝被併那櫃的封櫃時間晚於保留班次規定離站的分鐘數（保留班次要等多久）。省里程＝被併掉那班的班次里程（113 回填中位數；無資料則不計）。</p>
+  </div>
+
+  <!-- 班次體檢卡 -->
+  <div id="tool-trip" class="hide">
+    <div class="card"><div class="bar"><input id="tpCode" type="text" list="tpList" placeholder="班次代號，如 7628 / BF33" style="width:200px"><datalist id="tpList"></datalist><button id="tpRun" class="pri">查詢</button><span class="note">也可從減開清單／併櫃表點班次代號</span></div></div>
+    <div id="tpOut"></div>
+  </div>
+
+  <!-- 加班檢核 -->
+  <div id="tool-ot" class="hide">
+    <div class="card"><div class="bar">
+      <label>排序 <select id="otSort"><option value="low55">加班卻低載次數</option><option value="ot_days">加班天數</option><option value="avg">平均積載率（低→高）</option></select></label>
+      <label>最少加班天數 <input id="otMin" type="number" value="3" style="width:60px"></label>
+      <label>方向 <select id="otDir"><option value="">全部</option><option>南向</option><option>北向</option><option>同區</option></select></label>
+      <input id="otQ" type="search" placeholder="篩站名/班次"><button id="otRun" class="pri">檢核</button><button id="otXls">⬇ Excel</button>
+    </div></div>
+    <div class="grid2" style="margin:10px 0">
+      <div class="card"><h3>星期別加班（83 六方向）</h3><div class="sub">平日平均加班台數與南向−北向淨額；週五高於週四＝週末前清倉訊號</div><div id="otDow"></div></div>
+      <div class="card"><h3>方向失衡日（|南向−北向| ≥ 8）</h3><div class="sub">最近 60 天</div><div id="otImb" class="scroll" style="max-height:220px"></div></div>
+    </div>
+    <div class="scroll" id="otTable" style="max-height:60vh"></div>
+  </div>
+
+  <!-- 決策回看 -->
+  <div id="tool-review" class="hide">
+    <div class="card"><div class="bar"><label>期間 <input id="rvFrom" type="date"> ～ <input id="rvTo" type="date"></label><button id="rvRun" class="pri">載入</button><span class="note">執行率＝採用班數／建議班數；「實際未開」＝採用的班次當天封櫃明細裡沒有出現</span></div></div>
+    <div class="scroll" id="rvTable" style="max-height:60vh"></div>
+  </div>
+</section>
+
+<!-- ================= 資料倉 ================= -->
+<section id="t-data" class="hide">
+  <div class="split">
+    <div>
+      <div class="bar"><input id="rq" type="search" placeholder="搜尋報表" style="flex:1"></div>
+      <div class="list" id="rlist"></div>
+      <div class="list" style="margin-top:10px;max-height:none">
+        <div class="grp">衍生資料（彙整）</div>
+        <div class="it" data-meta="trip_km"><span class="rid">KM</span>班次里程字典（113 回填）</div>
+        <div class="it" data-meta="trip_load"><span class="rid">LOAD</span>班次積載率彙整（205）</div>
+        <div class="it" data-meta="idle_trips"><span class="rid">IDLE</span>空櫃班次彙整（206×31）</div>
+        <div class="it" data-meta="pair_low"><span class="rid">PAIR</span>併櫃候選站對（同日多櫃低載）</div>
+      </div>
+    </div>
+    <div id="rpanel"><p class="muted">左側選一張報表。</p></div>
+  </div>
+</section>
+
+<!-- ================= 更新狀態 ================= -->
+<section id="t-status" class="hide">
+  <div id="sbanner" class="banner">載入中…</div>
+  <h2>各報表資料涵蓋</h2>
+  <div class="scroll" id="covTable" style="max-height:none"></div>
+  <h2>最近抓取紀錄 <span class="small muted">最新 150 筆</span></h2>
+  <div class="scroll" id="logTable"></div>
+  <h2>怎麼更新</h2>
+  <div class="card">
+    <ul>
+      <li><b>自動</b>：公司電腦的 Windows 工作排程 <code>OpsHub-Daily</code> 每天 13:00 執行 <code>tools\update_daily.ps1</code>：回補最近 3 天（同日重跑＝覆蓋）、回填班次里程、重建 KPI、上傳。漏跑會在下次開機補執行。</li>
+      <li><b>手動</b>：在公司電腦對 Claude 說「<b>更新運務資料</b>」，或執行 <code>python C:\Users\26516\ops-hub\tools\hub_sync.py</code>（<code>--from 20260901 --to 20260930</code> 可回補區間）。</li>
+      <li><b>月檔</b>：每月 5 日後自動補上個月的 626 科目費用／39 車輛總成本／55 油量，並刷新 31 班次主檔、96 貨櫃總表。</li>
+      <li>nls 是公司內網，抓取只能在公司電腦；本站只負責「看」。所有查詢唯讀，不會改動平台任何資料。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= 文件 ================= -->
+<section id="t-docs" class="hide">
+  <div class="grid2" id="docCards"></div>
+  <div id="docView" class="hide" style="margin-top:12px"><div class="bar"><button id="docClose">✕ 關閉</button><a id="docOpen" target="_blank">在新分頁開啟</a></div><iframe class="doc" id="docFrame"></iframe></div>
+  <h2>資料流程</h2>
+  <div class="card">
+    <pre>nls 報表平台（內網，唯讀）
+   │  deep_pull.py / hub_sync.py（公司電腦，每日 13:00）
+   ▼
+C:\Users\26516\notebookLM\nls-explorer\data\&lt;報表&gt;\&lt;日期&gt;.csv      ← 原始 CSV（本機資料倉）
+   │  build_dataset.py → daily_kpi.csv / detail/&lt;日&gt;.json / trip_km.json
+   ▼
+Supabase（nx_daily / nx_detail / nx_coverage / nx_pull_log / nx_meta + Storage nx-raw / nx-docs）
+   │  Edge Function nxhub（登入 token 驗證）
+   ▼
+本站 ares-1215.github.io/ops-hub（看板 / 資料倉 / 更新狀態 / 文件）</pre>
+  </div>
+</section>
+</main>
+</div>
+
+<script>
+const API="https://hmqnlovyzlvvnkqmfwtt.supabase.co/functions/v1/nxhub";
+const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
+const fmt=(v,d=0)=>v==null||v===''||isNaN(v)?'—':Number(v).toLocaleString('zh-TW',{maximumFractionDigits:d,minimumFractionDigits:d});
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const iso=d=>d.length===8?d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6):d;
+/* theme */
+try{const t=localStorage.getItem('nx_theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}
+$('#themeBtn').onclick=()=>{const cur=document.documentElement.dataset.theme||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');const nxt=cur==='dark'?'light':'dark';document.documentElement.dataset.theme=nxt;try{localStorage.setItem('nx_theme',nxt)}catch(e){}};
+/* auth */
+let AUTH=null;try{AUTH=JSON.parse(localStorage.getItem('nx_auth')||'null')}catch(e){}
+function setAuth(a){AUTH=a;try{a?localStorage.setItem('nx_auth',JSON.stringify(a)):localStorage.removeItem('nx_auth')}catch(e){}}
+async function api(body){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,token:AUTH?.token})});const j=await r.json().catch(()=>({error:'回應解析失敗'}));if(!r.ok){if(r.status===401&&body.action!=='login'){setAuth(null);location.reload()}throw new Error(j.error||('HTTP '+r.status))}return j}
+$('#loginForm').addEventListener('submit',async ev=>{ev.preventDefault();$('#liErr').textContent='';$('#liBtn').disabled=true;try{const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',emp:$('#liEmp').value.trim(),pass:$('#liPw').value})});const j=await r.json();if(!r.ok)throw new Error(j.error||'登入失敗');setAuth({token:j.token,name:j.name,emp:$('#liEmp').value.trim()});enter()}catch(e){$('#liErr').textContent=e.message}finally{$('#liBtn').disabled=false}});
+$('#logoutBtn').onclick=()=>{setAuth(null);location.reload()};
+/* tabs */
+$$('#tabs button').forEach(b=>b.onclick=()=>{$$('#tabs button').forEach(x=>x.classList.toggle('on',x===b));['dash','tools','data','status','docs'].forEach(t=>$('#t-'+t).classList.toggle('hide',t!==b.dataset.t));if(b.dataset.t==='tools')initTools();if(b.dataset.t==='data'&&!DATA_INIT)initData();if(b.dataset.t==='status')loadStatus();if(b.dataset.t==='docs')initDocs();});
+
+/* ================= 看板 ================= */
+let ROWS=[],BY={},DETAIL={},TRIPKM=null;
+const KPIS=[['pieces','件數',0],['km_act','實際里程 km',0],['km_per_kpiece','每千件里程',1],['empty_rate','空駛率 %',1],['ot_total','加班台數(83)',0],['ot_net_south','南向淨額',0],['seal_ot','加班封櫃數(205)',0],['low55_n','低載櫃數 ≤55%',0],['avg_load','平均積載率 %',1],['idle_trips','空櫃班次',0],['idle_km','無效里程 km',0],['trucks41','行駛日報車頭數',0],['trips206','運行表班次數',0],['wait60','空檔≥60分 班次',0],['arrive_ontime_rate','到著準點率 %',1],['unload_med_min','卸時中位 分',0],['hours_drive','行駛時數合計',0],['boxes_attached','附掛櫃數合計',0],['km_plan','運行表里程 km',0],['km_semi','半拖表定 km',0],['km_full','全拖表定 km',0],['seal_n','封櫃數',0],['late15_n','離站晚>15分 櫃',0]];
+const DEC=Object.fromEntries(KPIS.map(k=>[k[0],k[2]]));
+async function loadKpi(){const j=await api({action:'kpi'});ROWS=j.rows.map(r=>({day:r.day.replace(/-/g,''),dow:r.dow,...r.data})).filter(r=>r.km_act);ROWS.forEach(r=>{if(r.arrive_judged)r.arrive_ontime_rate=r.arrive_ontime/r.arrive_judged*100});BY=Object.fromEntries(ROWS.map(r=>[r.day,r]));
+ const ds=$('#day');ds.innerHTML='';ROWS.forEach(r=>{const o=document.createElement('option');o.value=r.day;o.textContent=iso(r.day)+'('+r.dow+')';ds.appendChild(o)});if(ROWS.length){ds.value=ROWS[ROWS.length-1].day;$('#from').value=iso(ROWS[Math.max(0,ROWS.length-90)].day);$('#to').value=iso(ROWS[ROWS.length-1].day)}
+ for(const s of ['#cmpA','#cmpB']){const e=$(s);e.innerHTML='';ROWS.forEach(r=>{const o=document.createElement('option');o.value=r.day;o.textContent=iso(r.day)+'('+r.dow+') '+fmt(r.pieces)+'件';e.appendChild(o)})}if(ROWS.length)$('#cmpA').value=ROWS[ROWS.length-1].day;
+ $('#dashNote').textContent=ROWS.length?`${iso(ROWS[0].day)} ～ ${iso(ROWS[ROWS.length-1].day)}，共 ${ROWS.length} 天`:'尚無資料';}
+function filt(){const f=$('#from').value.replace(/-/g,''),t=$('#to').value.replace(/-/g,''),w=$('#dow').value;return ROWS.filter(r=>r.day>=f&&r.day<=t&&(!w||r.dow===w))}
+function avgOf(list,k){const v=list.map(r=>r[k]).filter(x=>x!=null&&!isNaN(x));return v.length?v.reduce((a,b)=>a+b,0)/v.length:null}
+function tiles(){const d=BY[$('#day').value];if(!d)return;const i=ROWS.indexOf(d);const base=ROWS.slice(Math.max(0,i-28),i).filter(r=>r.dow===d.dow);$('#snapTitle').textContent=iso(d.day)+'（'+d.dow+'）　對照：前 4 週同星期平均';
+ $('#tiles').innerHTML=KPIS.slice(0,18).map(([k,n,dec])=>{const v=d[k],b=avgOf(base,k);let dd='';if(v!=null&&b){const p=(v-b)/b*100;dd=`<span class="${p>0?'up':'down'}">${p>0?'▲':'▼'}${Math.abs(p).toFixed(1)}%</span> vs ${fmt(b,dec)}`}return `<div class="tile"><div class="k">${n}</div><div class="v">${fmt(v,dec)}</div><div class="d">${dd}</div></div>`}).join('')}
+function chart(id,list,series,opt={}){const W=560,H=220,L=48,R=series.some(s=>s.axis==='r')?48:10,T=14,B=30;const n=list.length;const el=$('#'+id);if(!n){el.innerHTML='<p class="note">無資料</p>';return}
+ const x=i=>L+(W-L-R)*(n===1?0.5:i/(n-1));const ax={l:{min:Infinity,max:-Infinity},r:{min:Infinity,max:-Infinity}};
+ series.forEach(s=>{list.forEach(r=>{const v=r[s.k];if(v!=null&&!isNaN(v)){const a=ax[s.axis||'l'];a.min=Math.min(a.min,v);a.max=Math.max(a.max,v)}})});
+ for(const a of Object.values(ax)){if(a.min===Infinity){a.min=0;a.max=1}if(opt.zero!==false)a.min=Math.min(a.min,0);if(a.max===a.min)a.max=a.min+1;const pad=(a.max-a.min)*.08;a.max+=pad;if(a.min<0)a.min-=pad}
+ const y=(v,s)=>{const a=ax[s];return T+(H-T-B)*(1-(v-a.min)/(a.max-a.min))};let g=`<svg class="ch" viewBox="0 0 ${W} ${H}">`;
+ for(let k=0;k<=4;k++){const v=ax.l.min+(ax.l.max-ax.l.min)*k/4;const yy=y(v,'l');g+=`<line class="axis" x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}"/><text class="lbl" x="${L-4}" y="${yy+3}" text-anchor="end">${fmt(v,Math.abs(v)<10?1:0)}</text>`;if(R>10){const vr=ax.r.min+(ax.r.max-ax.r.min)*k/4;g+=`<text class="lbl" x="${W-R+4}" y="${yy+3}">${fmt(vr,Math.abs(vr)<10?1:0)}</text>`}}
+ list.forEach((r,i)=>{if(r.dow==='六'||r.dow==='日')g+=`<rect x="${x(i)-(W-L-R)/n/2}" y="${T}" width="${(W-L-R)/n}" height="${H-T-B}" fill="var(--grey)" opacity=".12"/>`;if(i%Math.ceil(n/8)===0||i===n-1)g+=`<text class="lbl" x="${x(i)}" y="${H-B+12}" text-anchor="middle">${r.day.slice(4,6)}/${r.day.slice(6)}</text>`});
+ const bars=series.filter(t=>t.type==='bar');series.forEach(s=>{const a=s.axis||'l';if(s.type==='bar'){const bw=Math.max(2,(W-L-R)/n*.6/bars.length);const bi=bars.indexOf(s);list.forEach((r,i)=>{const v=r[s.k];if(v==null||isNaN(v))return;const y0=y(0,a),y1=y(v,a);g+=`<rect x="${x(i)-bw*bars.length/2+bi*bw}" y="${Math.min(y0,y1)}" width="${bw}" height="${Math.abs(y0-y1)}" fill="${s.c}" opacity=".85"><title>${iso(r.day)}(${r.dow}) ${s.n}: ${fmt(v,1)}</title></rect>`})}
+ else{let p='',pen=false;list.forEach((r,i)=>{const v=r[s.k];if(v==null||isNaN(v)){pen=false;return}p+=(pen?'L':'M')+x(i)+','+y(v,a);pen=true});g+=`<path d="${p}" fill="none" stroke="${s.c}" stroke-width="1.8"/>`;list.forEach((r,i)=>{const v=r[s.k];if(v==null||isNaN(v))return;g+=`<circle cx="${x(i)}" cy="${y(v,a)}" r="${n>60?1.6:2.6}" fill="${s.c}"><title>${iso(r.day)}(${r.dow}) ${s.n}: ${fmt(v,1)}</title></circle>`})}});
+ el.innerHTML=g+'</svg><div class="legend">'+series.map(s=>`<span><i style="background:${s.c}"></i>${s.n}${s.axis==='r'?'（右軸）':''}</span>`).join('')+'</div>'}
+function charts(){const l=filt();
+ chart('c1',l,[{k:'pieces',n:'件數',c:'var(--blue)',type:'bar'},{k:'km_act',n:'實際里程',c:'var(--acc)',axis:'r'}]);
+ chart('c2',l,[{k:'km_per_kpiece',n:'每千件里程',c:'var(--acc)'},{k:'empty_rate',n:'空駛率 %',c:'var(--red)',axis:'r'}],{zero:false});
+ chart('c3',l,[{k:'ot_total',n:'加班台數(83)',c:'var(--orange)',type:'bar'},{k:'low55_n',n:'低載櫃數',c:'var(--red)',type:'bar'},{k:'km_per_kpiece',n:'每千件里程',c:'var(--blue)',axis:'r'}]);
+ chart('c4',l,[{k:'idle_0-50',n:'空櫃 <50km',c:'var(--grey)',type:'bar'},{k:'idle_50-100',n:'50–100',c:'var(--orange)',type:'bar'},{k:'idle_100-200',n:'100–200',c:'var(--red)',type:'bar'},{k:'idle_200+',n:'200+',c:'var(--blue)',type:'bar'},{k:'idle_km',n:'無效里程 km',c:'var(--acc)',axis:'r'}]);
+ chart('c5',l,[{k:'ot_south',n:'南向加班',c:'var(--orange)',type:'bar'},{k:'ot_north',n:'北向加班',c:'var(--blue)',type:'bar'},{k:'ot_net_south',n:'南向−北向',c:'var(--red)',axis:'r'}]);
+ chart('c6',l,[{k:'arrive_ontime_rate',n:'到著準點率 %',c:'var(--acc)'},{k:'unload_med_min',n:'卸時中位(分)',c:'var(--orange)',axis:'r'}],{zero:false})}
+function table(){const l=filt();const cols=[['day','日期'],['dow','週'],...KPIS.map(([k,n])=>[k,n])];$('#tbl').innerHTML='<table><thead><tr>'+cols.map(c=>`<th class="${c[0]==='day'||c[0]==='dow'?'':'num'}">${c[1]}</th>`).join('')+'</tr></thead><tbody>'+l.map(r=>`<tr class="${r.day===$('#day').value?'sel':''}${r.dow==='六'||r.dow==='日'?' we':''}">`+cols.map(([k])=>`<td class="${k==='day'||k==='dow'?'':'num'}">${k==='day'?iso(r[k]):k==='dow'?r[k]:fmt(r[k],DEC[k])}</td>`).join('')+'</tr>').join('')+'</tbody></table>'}
+function cmp(){const a=BY[$('#cmpA').value],b=BY[$('#cmpB').value];if(!a||!b){$('#cmpOut').innerHTML='';return}$('#cmpOut').innerHTML='<table><thead><tr><th>指標</th><th class="num">A '+iso(a.day)+'('+a.dow+')</th><th class="num">B '+iso(b.day)+'('+b.dow+')</th><th class="num">A−B</th><th class="num">A/B−1</th></tr></thead><tbody>'+KPIS.map(([k,n,dec])=>{const va=a[k],vb=b[k];const d=(va!=null&&vb!=null)?va-vb:null;const p=(d!=null&&vb)?d/vb*100:null;return `<tr><td>${n}</td><td class="num">${fmt(va,dec)}</td><td class="num">${fmt(vb,dec)}</td><td class="num ${d>0?'up':d<0?'down':''}">${d==null?'—':(d>0?'+':'')+fmt(d,dec)}</td><td class="num">${p==null?'—':(p>0?'+':'')+p.toFixed(1)+'%'}</td></tr>`}).join('')+'</tbody></table>'}
+$('#autoB').onclick=()=>{const a=BY[$('#cmpA').value];if(!a||!a.pieces)return;let best=null;ROWS.forEach(r=>{if(r.day===a.day||!r.pieces)return;const d=Math.abs(r.pieces-a.pieces);if(!best||d<best.d)best={d,day:r.day}});if(best){$('#cmpB').value=best.day;cmp()}};
+$('#cmpA').onchange=$('#cmpB').onchange=cmp;
+/* 當日清單 */
+const DCOLS={idle_trips:[['truck','車頭'],['code','班次'],['name','名稱'],['from','起站'],['to','迄站'],['dep','規定離站'],['arr','規定進站'],['km','里程',1],['wait','等待分']],
+ low_loads:[['code','班次'],['name','名稱'],['cat','類別'],['from','起站'],['to','迄站'],['box','櫃號'],['load','發送積載率',1],['avg_load','平均積載率',1],['sched_dep','規定離站'],['act_dep','實際離站'],['seal','封櫃']],
+ ot_trips:[['code','班次'],['name','名稱'],['cat','類別'],['from','起站'],['to','迄站'],['box','櫃號'],['load','發送積載率',1],['sched_dep','規定離站'],['act_dep','實際離站']],
+ ot_dirs:[['dir','方向'],['n','班數',1],['trips','班次']],
+ units:[['unit','單位'],['trucks41','車頭數',1],['km_plan','運行表里程',1],['km_act','實際里程',1],['km_empty_box','空櫃里程',1],['km_empty_head','空車頭里程',1],['km_loaded','重櫃里程',1],['empty_rate','空駛率 %',1]]};
+let DROWS=[];
+async function loadDetail(){const day=$('#day').value;if(!day)return;const kind=$('#dkind').value;$('#dtable').innerHTML='<p class="note"><span class="spin"></span> 載入…</p>';
+ if(!DETAIL[day]){try{const j=await api({action:'detail',day:iso(day)});DETAIL[day]=Object.fromEntries(j.rows.map(r=>[r.kind,r.payload]))}catch(e){$('#dtable').innerHTML='<p class="note">'+esc(e.message)+'</p>';return}}
+ let rows=DETAIL[day][kind]||[];if(kind==='ot_dirs')rows=rows.map(r=>({dir:r.dir,n:r.trips.length,trips:r.trips.join('、')}));if(kind==='units')rows=rows.map(r=>({...r,empty_rate:r.km_act?(r.km_empty_box+r.km_empty_head)/r.km_act*100:null}));
+ DROWS=rows;renderD()}
+function renderD(){const kind=$('#dkind').value;const cols=DCOLS[kind];const q=$('#dq').value.trim().toLowerCase();const rows=DROWS.filter(r=>!q||Object.values(r).join(' ').toLowerCase().includes(q));$('#dcount').textContent=`${rows.length} 筆`;
+ $('#dtable').innerHTML=rows.length?'<table><thead><tr>'+cols.map(c=>`<th class="${c[2]?'num':''}">${c[1]}</th>`).join('')+'</tr></thead><tbody>'+rows.slice(0,2000).map(r=>'<tr>'+cols.map(c=>`<td class="${c[2]?'num':''}" style="${c[0]==='trips'?'white-space:normal':''}">${c[2]?fmt(r[c[0]],c[0]==='km'||c[0].includes('km')||c[0].includes('rate')||c[0].includes('load')?1:0):esc(r[c[0]])}</td>`).join('')+'</tr>').join('')+'</tbody></table>':'<p class="note">無資料</p>'}
+$('#dkind').onchange=loadDetail;$('#dq').oninput=renderD;
+$('#dxls').onclick=()=>exportXlsx(DCOLS[$('#dkind').value].map(c=>[c[0],c[1]]),DROWS,`${$('#dkind').value}_${$('#day').value}`);
+function allDash(){tiles();charts();table();loadDetail()}
+$('#day').onchange=allDash;$('#dow').onchange=()=>{charts();table()};$('#from').onchange=$('#to').onchange=()=>{charts();table()};
+$('#csvBtn').onclick=()=>{const l=filt();const cols=['day','dow',...KPIS.map(k=>k[0])];dlText('\ufeff'+[cols.join(','),...l.map(r=>cols.map(c=>r[c]??'').join(','))].join('\n'),'daily_kpi.csv','text/csv')};
+function dlText(txt,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type}));a.download=name;a.click()}
+let XLSX_P=null;function loadXlsx(){if(window.XLSX)return Promise.resolve();if(XLSX_P)return XLSX_P;XLSX_P=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=res;s.onerror=()=>rej(new Error('無法載入 Excel 套件'));document.head.appendChild(s)});return XLSX_P}
+async function exportXlsx(cols,rows,name){try{await loadXlsx();const data=[cols.map(c=>c[1]),...rows.map(r=>cols.map(c=>r[c[0]]??''))];const ws=XLSX.utils.aoa_to_sheet(data);ws['!cols']=cols.map((c,i)=>({wch:Math.min(60,Math.max(8,...data.slice(0,200).map(r=>String(r[i]??'').replace(/[\u4e00-\u9fff]/g,'xx').length+2)))}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'data');XLSX.writeFile(wb,name+'.xlsx')}catch(e){alert(e.message)}}
+
+/* ================= 班次工具 ================= */
+let TRIP_DOW=null,OT_AGG=null,TOOLS_INIT=false,CUT_ROWS=[],MG_ROWS=[],OT_ROWS=[];
+const DOWS='一二三四五六日';
+const dowOf=ymd=>DOWS[new Date(ymd.slice(0,4),+ymd.slice(4,6)-1,+ymd.slice(6)).getDay()===0?6:new Date(ymd.slice(0,4),+ymd.slice(4,6)-1,+ymd.slice(6)).getDay()-1];
+async function initTools(){if(TOOLS_INIT)return;TOOLS_INIT=true;
+ $$('#toolTabs button').forEach(b=>b.onclick=()=>{$$('#toolTabs button').forEach(x=>x.classList.toggle('pri',x===b));['cut','merge','trip','ot','review'].forEach(t=>$('#tool-'+t).classList.toggle('hide',t!==b.dataset.tool));if(b.dataset.tool==='ot'&&!OT_ROWS.length)otRun();if(b.dataset.tool==='review')rvRun()});
+ const lISO=d=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);const tm=new Date(Date.now()+864e5);$('#cutDay').value=lISO(tm);
+ const rv=new Date(Date.now()-30*864e5);$('#rvFrom').value=lISO(rv);$('#rvTo').value=lISO(new Date(Date.now()+7*864e5));
+ ROWS.slice().reverse().forEach(r=>{const o=document.createElement('option');o.value=r.day;o.textContent=iso(r.day)+'('+r.dow+')';$('#mgDay').appendChild(o)});
+ $('#cutRun').onclick=cutRun;$('#cutAll').onclick=()=>{$$('#cutTable input[type=checkbox]').forEach(c=>c.checked=true);cutSum()};$('#cutNone').onclick=()=>{$$('#cutTable input[type=checkbox]').forEach(c=>c.checked=false);cutSum()};
+ $('#cutXls').onclick=()=>exportXlsx(CUT_COLS.map(c=>[c[0],c[1]]),CUT_ROWS,'減開建議_'+$('#cutDay').value);$('#cutSave').onclick=cutSave;$('#cutQ').oninput=()=>cutRender();
+ $('#mgRun').onclick=mgRun;$('#mgXls').onclick=()=>exportXlsx(MG_COLS.map(c=>[c[0],c[1]]),MG_ROWS,'併櫃模擬_'+$('#mgDay').value);$('#mgSave').onclick=mgSave;$('#mgQ').oninput=()=>mgRender();
+ $('#tpRun').onclick=()=>tripCard($('#tpCode').value.trim());$('#tpCode').onkeydown=e=>{if(e.key==='Enter')tripCard($('#tpCode').value.trim())};
+ $('#otRun').onclick=otRun;$('#otXls').onclick=()=>exportXlsx(OT_COLS.map(c=>[c[0],c[1]]),OT_ROWS,'加班檢核');$('#otQ').oninput=()=>otRender();
+ $('#rvRun').onclick=rvRun;
+ try{const j=await api({action:'meta',k:'trip_dow'});TRIP_DOW=j.v||{};const dl=$('#tpList');Object.entries(TRIP_DOW).slice(0,4000).forEach(([c,t])=>{const o=document.createElement('option');o.value=c;o.label=t.name;dl.appendChild(o)})}catch(e){TRIP_DOW={};alert('班次統計載入失敗：'+e.message)}
+ cutRun()}
+/* ---- 減開建議清單 ---- */
+const CUT_COLS=[['code','班次'],['name','名稱'],['route','起站→迄站'],['dir','方向'],['km','里程'],['recent','近期同星期積載率'],['low','低載/出現'],['avg','平均積載'],['allshare','全期低載比'],['save_km','可省 km/日'],['save_nt','可省 元/日'],['save_pp','可省 元/件']];
+function forecastFor(dayIso){const w=DOWS[(new Date(dayIso).getDay()+6)%7];const list=ROWS.filter(r=>r.dow===w&&r.pieces&&r.day<dayIso.replace(/-/g,'')).slice(-4);if(!list.length)return {w,pieces:null,list:[]};return {w,pieces:list.reduce((a,b)=>a+b.pieces,0)/list.length,list}}
+async function cutRun(){if(!TRIP_DOW)return;const dayIso=$('#cutDay').value;const fc=forecastFor(dayIso);const thr=$('#cutThr').value,win=$('#cutWin').value,min=+$('#cutMin').value,dir=$('#cutDir').value,noOt=$('#cutNoOt').checked,price=+$('#cutPrice').value;
+ $('#cutFc').innerHTML=`星期${fc.w}　預測件數 <b>${fmt(fc.pieces)}</b>（近 4 週同星期：${fc.list.map(r=>iso(r.day).slice(5)+' '+fmt(r.pieces)).join('、')||'無資料'}）`;
+ const rows=[];for(const [code,t] of Object.entries(TRIP_DOW)){const d=t.dow?.[fc.w];if(!d)continue;if(noOt&&t.ot_share>0.2)continue;if(dir&&t.dir!==dir)continue;
+  const n=win==='all'?d.n:d['n'+win];const low=win==='all'?d['low'+thr]:d['low'+thr+'_'+win];const avg=win==='all'?d.avg:d['avg'+win];if(n==null||n<min||low<min)continue;
+  const km=t.km||0;rows.push({code,name:t.name,route:`${t.from}→${t.to}`,dir:t.dir,km:t.km,recent:(d.recent||[]).map(x=>Math.round(x[1])).join(' / '),low:`${low}/${n}`,lowShare:low/n,avg,allshare:Math.round(d.low55/d.n*100)+'%',save_km:km,save_nt:Math.round(km*price),save_pp:fc.pieces?+(km*price/fc.pieces).toFixed(3):null,sortKey:low/n*1000+km})}
+ rows.sort((a,b)=>b.lowShare-a.lowShare||(b.km||0)-(a.km||0));CUT_ROWS=rows;
+ let adopted=new Set();try{const j=await api({action:'decide_list',from:dayIso,to:dayIso});if(j.rows.length){adopted=new Set(j.rows[0].adopted||[]);$('#cutNote').value=j.rows[0].note||'';$('#cutSaved').textContent=`已有登記（${(j.rows[0].updated_at||'').slice(0,16).replace('T',' ')}，採用 ${adopted.size} 班）`}else{$('#cutSaved').textContent='';$('#cutNote').value=''}}catch(e){}
+ cutRender(adopted)}
+function cutRender(adopted){const q=$('#cutQ').value.trim().toLowerCase();const prev=adopted||new Set($$('#cutTable input[type=checkbox]:checked').map(c=>c.value));const rows=CUT_ROWS.filter(r=>!q||(r.code+r.name+r.route).toLowerCase().includes(q));
+ $('#cutTable').innerHTML=rows.length?'<table><thead><tr><th>採用</th>'+CUT_COLS.map(c=>`<th class="${['km','avg','save_km','save_nt','save_pp'].includes(c[0])?'num':''}">${c[1]}</th>`).join('')+'</tr></thead><tbody>'+rows.map(r=>`<tr><td><input type="checkbox" value="${r.code}" ${prev.has(r.code)?'checked':''}></td>`+CUT_COLS.map(c=>{const v=r[c[0]];if(c[0]==='code')return `<td><a href="#" class="tp" data-c="${r.code}">${r.code}</a></td>`;if(['km','save_km','save_nt'].includes(c[0]))return `<td class="num">${fmt(v)}</td>`;if(c[0]==='avg')return `<td class="num">${fmt(v,1)}</td>`;if(c[0]==='save_pp')return `<td class="num">${v==null?'—':v.toFixed(3)}</td>`;return `<td>${esc(v)}</td>`}).join('')+'</tr>').join('')+'</tbody></table>':'<p class="note">沒有符合規則的班次</p>';
+ $$('#cutTable input[type=checkbox]').forEach(c=>c.onchange=cutSum);$$('#cutTable a.tp').forEach(a=>a.onclick=ev=>{ev.preventDefault();openTrip(a.dataset.c)});cutSum()}
+function cutSum(){const fc=forecastFor($('#cutDay').value);const price=+$('#cutPrice').value;const all=CUT_ROWS;const sel=new Set($$('#cutTable input[type=checkbox]:checked').map(c=>c.value));const pick=all.filter(r=>sel.has(r.code));const km=l=>l.reduce((a,b)=>a+(b.km||0),0);
+ $('#cutTiles').innerHTML=[['候選班次',all.length,0],['候選合計里程',km(all),0],['候選可省元/日',km(all)*price,0],['採用班次',pick.length,0],['採用合計里程',km(pick),0],['採用可省元/日',km(pick)*price,0],['採用可省元/件',fc.pieces?km(pick)*price/fc.pieces:null,2],['無里程資料的候選',all.filter(r=>!r.km).length,0]].map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v">${fmt(v,d)}</div></div>`).join('')}
+async function cutSave(){const dayIso=$('#cutDay').value;const fc=forecastFor(dayIso);const sel=$$('#cutTable input[type=checkbox]:checked').map(c=>c.value);$('#cutSave').disabled=true;try{let merges=[];try{const j=await api({action:'decide_list',from:dayIso,to:dayIso});if(j.rows.length)merges=j.rows[0].merges||[]}catch(e){}
+ await api({action:'decide_save',day:dayIso,forecast:{pieces:fc.pieces,dow:fc.w,basis:fc.list.map(r=>[r.day,r.pieces])},params:{thr:$('#cutThr').value,win:$('#cutWin').value,min:+$('#cutMin').value,dir:$('#cutDir').value,noOt:$('#cutNoOt').checked,price:+$('#cutPrice').value},suggested:CUT_ROWS.map(r=>({code:r.code,name:r.name,route:r.route,dir:r.dir,km:r.km,low:r.low,avg:r.avg})),adopted:sel,merges,note:$('#cutNote').value});$('#cutSaved').textContent=`已登記 ${new Date().toLocaleString('zh-TW')}：建議 ${CUT_ROWS.length} 班、採用 ${sel.length} 班`}catch(e){alert(e.message)}finally{$('#cutSave').disabled=false}}
+/* ---- 併櫃模擬 ---- */
+const MG_COLS=[['mode','模式'],['from','起站'],['keep_name','保留班次'],['load_keep','保留積載'],['dep_keep','保留規定離站'],['to1','保留迄站'],['cut_name','併入班次'],['load_cut','併入積載'],['seal_cut','併入封櫃'],['to2','併入迄站'],['sum','合計'],['delay_min','延後(分)'],['dir','方向'],['cut_km','省 km'],['save_nt','省 元'],['cat','類別']];
+async function mgRun(){const day=$('#mgDay').value;if(!day)return;$('#mgTable').innerHTML='<p class="note"><span class="spin"></span> 載入…</p>';try{if(!DETAIL[day]||!DETAIL[day].merge_pairs){const j=await api({action:'detail',day:iso(day),kinds:['merge_pairs']});DETAIL[day]=DETAIL[day]||{};j.rows.forEach(r=>DETAIL[day][r.kind]=r.payload)}
+ const price=+$('#cutPrice').value||23;const mode=$('#mgMode').value,cap=+$('#mgCap').value,maxDelay=+$('#mgDelay').value,reg=$('#mgReg').checked,dir=$('#mgDir').value;
+ MG_ROWS=(DETAIL[day].merge_pairs||[]).filter(p=>(!mode||p.mode===mode)&&p.sum<=cap&&(p.delay_min==null||p.delay_min<=maxDelay)&&(!reg||(p.cat_keep==='正班'&&p.cat_cut==='正班'))&&(!dir||p.dir===dir)&&p.from!==p.to1).map(p=>({...p,keep_name:`${p.keep} ${p.keep_name}`,cut_name:`${p.cut} ${p.cut_name}`,cat:`${p.cat_keep}/${p.cat_cut}`,save_nt:Math.round((p.cut_km||0)*price)}));
+ let adopted=new Set();try{const j=await api({action:'decide_list',from:iso(day),to:iso(day)});if(j.rows.length){adopted=new Set((j.rows[0].merges||[]).map(m=>m.box_cut));$('#mgSaved').textContent=`已登記配對 ${adopted.size} 組`}else $('#mgSaved').textContent=''}catch(e){}
+ mgRender(adopted)}catch(e){$('#mgTable').innerHTML='<p class="note">'+esc(e.message)+'</p>'}}
+function mgRender(adopted){const q=$('#mgQ').value.trim().toLowerCase();const prev=adopted||new Set($$('#mgTable input[type=checkbox]:checked').map(c=>c.value));const rows=MG_ROWS.filter(r=>!q||(r.from+r.keep_name+r.cut_name+r.to1+r.to2).toLowerCase().includes(q));
+ $('#mgTable').innerHTML=rows.length?'<table><thead><tr><th>採用</th>'+MG_COLS.map(c=>`<th>${c[1]}</th>`).join('')+'</tr></thead><tbody>'+rows.map(r=>`<tr><td><input type="checkbox" value="${esc(r.box_cut)}" ${prev.has(r.box_cut)?'checked':''}></td>`+MG_COLS.map(c=>{const v=r[c[0]];if(c[0]==='keep_name'||c[0]==='cut_name'){const code=c[0]==='keep_name'?r.keep:r.cut;return `<td><a href="#" class="tp" data-c="${code}">${esc(v)}</a></td>`}if(['load_keep','load_cut','sum','cut_km','save_nt','delay_min'].includes(c[0]))return `<td class="num">${v==null?'—':fmt(v,c[0]==='sum'?1:0)}</td>`;return `<td>${esc(v)}</td>`}).join('')+'</tr>').join('')+'</tbody></table>':'<p class="note">無配對候選</p>';
+ $$('#mgTable input[type=checkbox]').forEach(c=>c.onchange=mgSum);$$('#mgTable a.tp').forEach(a=>a.onclick=ev=>{ev.preventDefault();openTrip(a.dataset.c)});mgSum()}
+function mgSum(){const day=$('#mgDay').value;const pieces=BY[day]?.pieces;const price=+$('#cutPrice').value||23;const sel=new Set($$('#mgTable input[type=checkbox]:checked').map(c=>c.value));const pick=MG_ROWS.filter(r=>sel.has(r.box_cut));const km=l=>l.reduce((a,b)=>a+(b.cut_km||0),0);
+ $('#mgTiles').innerHTML=[['候選配對（=可省車次）',MG_ROWS.length,0],['A 同起迄',MG_ROWS.filter(r=>r.mode==='A').length,0],['B 同區多點',MG_ROWS.filter(r=>r.mode==='B').length,0],['候選可省 km',km(MG_ROWS),0],['候選可省 元',km(MG_ROWS)*price,0],['採用配對',pick.length,0],['採用可省 km',km(pick),0],['採用可省 元/件',pieces?km(pick)*price/pieces:null,3]].map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v">${fmt(v,d)}</div></div>`).join('')}
+async function mgSave(){const day=$('#mgDay').value;const dayIso=iso(day);const sel=new Set($$('#mgTable input[type=checkbox]:checked').map(c=>c.value));const merges=MG_ROWS.filter(r=>sel.has(r.box_cut)).map(r=>({mode:r.mode,from:r.from,keep:r.keep,cut:r.cut,box_keep:r.box_keep,box_cut:r.box_cut,to1:r.to1,to2:r.to2,sum:r.sum,delay_min:r.delay_min,cut_km:r.cut_km}));$('#mgSave').disabled=true;
+ try{let prev={};try{const j=await api({action:'decide_list',from:dayIso,to:dayIso});if(j.rows.length)prev=j.rows[0]}catch(e){}
+ await api({action:'decide_save',day:dayIso,forecast:prev.forecast||{},params:prev.params||{},suggested:prev.suggested||[],adopted:prev.adopted||[],merges,note:prev.note||''});$('#mgSaved').textContent=`已登記 ${merges.length} 組配對（${new Date().toLocaleString('zh-TW')}）`}catch(e){alert(e.message)}finally{$('#mgSave').disabled=false}}
+/* ---- 班次體檢卡 ---- */
+function openTrip(code){$$('#tabs button').forEach(x=>x.classList.toggle('on',x.dataset.t==='tools'));['dash','tools','data','status','docs'].forEach(t=>$('#t-'+t).classList.toggle('hide',t!=='tools'));$$('#toolTabs button').forEach(x=>x.classList.toggle('pri',x.dataset.tool==='trip'));['cut','merge','trip','ot','review'].forEach(t=>$('#tool-'+t).classList.toggle('hide',t!=='trip'));$('#tpCode').value=code;tripCard(code);$('#tool-trip').scrollIntoView({behavior:'smooth'})}
+async function tripCard(code){if(!code)return;const o=$('#tpOut');o.innerHTML='<p class="note"><span class="spin"></span> 載入…</p>';try{const j=await api({action:'trip_hist',code});if(!j.info){o.innerHTML='<p class="note">查無此班次（只收錄 2026-04 起有封櫃紀錄的班次）</p>';return}const info=j.info,hist=j.hist||{};const days=Object.keys(hist).sort();
+ const prof=DOWS.split('').map(w=>{const ls=days.filter(d=>dowOf(d)===w).map(d=>hist[d].l);const ot=days.filter(d=>dowOf(d)===w&&/加班|追加/.test(hist[d].c)).length;return {w,n:ls.length,avg:ls.length?ls.reduce((a,b)=>a+b,0)/ls.length:null,low:ls.filter(x=>0<x&&x<=55).length,ot}});
+ const W=560,H=160,L=36,T=10,B=22;const n=days.length;const x=i=>L+(W-L-10)*(n===1?.5:i/(n-1));const bw=Math.max(1.5,(W-L-10)/n*.7);let g=`<svg class="ch" viewBox="0 0 ${W} ${H}">`;[0,25,50,75,100].forEach(v=>{const y=T+(H-T-B)*(1-v/100);g+=`<line class="axis" x1="${L}" x2="${W-10}" y1="${y}" y2="${y}"/><text class="lbl" x="${L-4}" y="${y+3}" text-anchor="end">${v}</text>`});const y55=T+(H-T-B)*(1-55/100);g+=`<line x1="${L}" x2="${W-10}" y1="${y55}" y2="${y55}" stroke="var(--red)" stroke-dasharray="3 3"/>`;
+ days.forEach((d,i)=>{const h=hist[d];const y=T+(H-T-B)*(1-Math.min(100,h.l)/100);const c=/加班|追加/.test(h.c)?'var(--orange)':(h.l<=55?'var(--red)':'var(--acc)');g+=`<rect x="${x(i)-bw/2}" y="${y}" width="${bw}" height="${H-B-y}" fill="${c}" opacity=".85"><title>${iso(d)}(${dowOf(d)}) ${h.l}% ${h.n}櫃 ${h.c}${h.d!=null?' 到著'+(h.d>0?'晚':'早')+Math.abs(h.d)+'分':''}</title></rect>`;if(i%Math.ceil(n/8)===0||i===n-1)g+=`<text class="lbl" x="${x(i)}" y="${H-B+12}" text-anchor="middle">${d.slice(4,6)}/${d.slice(6)}</text>`});g+='</svg>';
+ const recent=days.slice(-30).reverse();
+ o.innerHTML=`<div class="card"><h3><span class="rid" style="color:var(--acc)">${esc(code)}</span> ${esc(info.name)} <span class="muted small">${esc(info.master||'')}</span></h3>
+ <dl class="kv"><dt>起迄</dt><dd>${esc(info.from)} → ${esc(info.to)}（${esc(info.dir)}；${esc(info.rfrom)}→${esc(info.rto)}）</dd><dt>里程</dt><dd>${info.km!=null?fmt(info.km)+' km（113 回填中位數）':'無資料'}</dd><dt>出現</dt><dd>${info.n_days} 天（${iso(info.first)} ～ ${iso(info.last)}）；加班比 ${Math.round(info.ot_share*100)}%</dd></dl>
+ <div class="legend"><span><i style="background:var(--acc)"></i>正班 &gt;55%</span><span><i style="background:var(--red)"></i>≤55% 低載</span><span><i style="background:var(--orange)"></i>加班/追加</span><span>— 紅虛線 55%</span></div>${g}</div>
+ <div class="grid2" style="margin-top:10px"><div class="card"><h3>星期別</h3><table><thead><tr><th>星期</th><th class="num">出現</th><th class="num">平均積載</th><th class="num">低載次數</th><th class="num">加班次</th></tr></thead><tbody>${prof.map(p=>`<tr><td>${p.w}</td><td class="num">${p.n}</td><td class="num">${fmt(p.avg,1)}</td><td class="num ${p.n&&p.low/p.n>=.5?'up':''}">${p.low}</td><td class="num">${p.ot}</td></tr>`).join('')}</tbody></table></div>
+ <div class="card"><h3>最近 30 次</h3><div class="scroll" style="max-height:300px"><table><thead><tr><th>日期</th><th>週</th><th class="num">積載</th><th class="num">櫃</th><th>類別</th><th class="num">到著差(分)</th></tr></thead><tbody>${recent.map(d=>{const h=hist[d];return `<tr><td>${iso(d)}</td><td>${dowOf(d)}</td><td class="num ${h.l<=55?'up':''}">${h.l}</td><td class="num">${h.n}</td><td>${esc(h.c)}</td><td class="num">${h.d==null?'—':h.d}</td></tr>`}).join('')}</tbody></table></div></div></div>`}catch(e){o.innerHTML='<p class="note">'+esc(e.message)+'</p>'}}
+/* ---- 加班檢核 ---- */
+const OT_COLS=[['code','班次'],['name','名稱'],['route','起站→迄站'],['dir','方向'],['ot_days','加班天數'],['boxes','櫃數'],['low55','加班卻低載'],['avg','平均積載'],['dows','星期分布'],['last','最近'],['km','里程']];
+async function otRun(){if(!OT_AGG){try{const j=await api({action:'meta',k:'ot_agg'});OT_AGG=j.v||{}}catch(e){OT_AGG={}}}const min=+$('#otMin').value,dir=$('#otDir').value,sort=$('#otSort').value;
+ OT_ROWS=Object.entries(OT_AGG).filter(([c,t])=>t.ot_days>=min&&(!dir||t.dir===dir)).map(([code,t])=>({code,name:t.name,route:`${t.from}→${t.to}`,dir:t.dir,ot_days:t.ot_days,boxes:t.boxes,low55:t.low55,avg:t.avg,dows:DOWS.split('').map(w=>t.dow[w]?`${w}${t.dow[w]}`:'').filter(Boolean).join(' '),last:iso(t.last),km:t.km}));
+ OT_ROWS.sort((a,b)=>sort==='avg'?a.avg-b.avg:b[sort]-a[sort]);otRender();
+ const wk=DOWS.split('').map(w=>{const l=ROWS.filter(r=>r.dow===w&&r.ot_total!=null);return {w,n:l.length,ot:avgOf(l,'ot_total'),net:avgOf(l,'ot_net_south'),seal:avgOf(l,'seal_ot')}});
+ $('#otDow').innerHTML='<table><thead><tr><th>星期</th><th class="num">天數</th><th class="num">加班台數(83)</th><th class="num">加班櫃(205)</th><th class="num">南向−北向</th></tr></thead><tbody>'+wk.map(p=>`<tr><td>${p.w}</td><td class="num">${p.n}</td><td class="num">${fmt(p.ot,1)}</td><td class="num">${fmt(p.seal,1)}</td><td class="num ${p.net>0?'up':''}">${fmt(p.net,1)}</td></tr>`).join('')+'</tbody></table>';
+ const imb=ROWS.slice(-60).filter(r=>Math.abs(r.ot_net_south||0)>=8).reverse();$('#otImb').innerHTML=imb.length?'<table><thead><tr><th>日期</th><th>週</th><th class="num">南向</th><th class="num">北向</th><th class="num">淨額</th><th class="num">每千件里程</th></tr></thead><tbody>'+imb.map(r=>`<tr><td>${iso(r.day)}</td><td>${r.dow}</td><td class="num">${r.ot_south}</td><td class="num">${r.ot_north}</td><td class="num ${r.ot_net_south>0?'up':'down'}">${r.ot_net_south>0?'+':''}${r.ot_net_south}</td><td class="num">${fmt(r.km_per_kpiece,1)}</td></tr>`).join('')+'</tbody></table>':'<p class="note">無</p>'}
+function otRender(){const q=$('#otQ').value.trim().toLowerCase();const rows=OT_ROWS.filter(r=>!q||(r.code+r.name+r.route).toLowerCase().includes(q));$('#otTable').innerHTML=rows.length?'<table><thead><tr>'+OT_COLS.map(c=>`<th>${c[1]}</th>`).join('')+'</tr></thead><tbody>'+rows.slice(0,800).map(r=>'<tr>'+OT_COLS.map(c=>{const v=r[c[0]];if(c[0]==='code')return `<td><a href="#" class="tp" data-c="${r.code}">${r.code}</a></td>`;if(['ot_days','boxes','low55','km'].includes(c[0]))return `<td class="num ${c[0]==='low55'&&v>=3?'up':''}">${fmt(v)}</td>`;if(c[0]==='avg')return `<td class="num">${fmt(v,1)}</td>`;return `<td>${esc(v)}</td>`}).join('')+'</tr>').join('')+'</tbody></table>':'<p class="note">無資料</p>';$$('#otTable a.tp').forEach(a=>a.onclick=ev=>{ev.preventDefault();openTrip(a.dataset.c)})}
+/* ---- 決策回看 ---- */
+async function rvRun(){const t=$('#rvTable');t.innerHTML='<p class="note"><span class="spin"></span> 載入…</p>';try{const j=await api({action:'decide_list',from:$('#rvFrom').value,to:$('#rvTo').value});if(!j.rows.length){t.innerHTML='<p class="note">這段期間沒有登記</p>';return}
+ const out=[];for(const d of j.rows){const ymd=d.day.replace(/-/g,'');const r=BY[ymd];const i=ROWS.indexOf(r);const base=i>=0?ROWS.slice(Math.max(0,i-28),i).filter(x=>x.dow===r.dow):[];const bk=avgOf(base,'km_per_kpiece');
+  let notRun=null;if(r&&(d.adopted||[]).length){notRun=0;for(const code of d.adopted.slice(0,40)){try{const h=await api({action:'trip_hist',code});if(h.hist&&!h.hist[ymd])notRun++}catch(e){}}}
+  out.push({day:d.day,dow:r?r.dow:DOWS[(new Date(d.day).getDay()+6)%7],fc:d.forecast?.pieces,act:r?.pieces,sug:(d.suggested||[]).length,adp:(d.adopted||[]).length,rate:(d.suggested||[]).length?Math.round((d.adopted||[]).length/d.suggested.length*100):null,notRun,mg:(d.merges||[]).length,mgkm:(d.merges||[]).reduce((a,b)=>a+(b.cut_km||0),0),kpp:r?.km_per_kpiece,bk,er:r?.empty_rate,ot:r?.arrive_ontime_rate,by:d.by_emp,note:d.note,at:d.updated_at?new Date(d.updated_at).toLocaleString('zh-TW',{hour12:false}).slice(0,16):''})}
+ t.innerHTML='<table><thead><tr><th>目標日</th><th>週</th><th class="num">預測件數</th><th class="num">實際件數</th><th class="num">建議班</th><th class="num">採用班</th><th class="num">執行率</th><th class="num">實際未開</th><th class="num">併櫃組</th><th class="num">併櫃省km</th><th class="num">每千件里程</th><th class="num">同星期基準</th><th class="num">空駛率</th><th class="num">到著準點率</th><th>登記</th><th>備註</th><th></th></tr></thead><tbody>'+out.map(o=>`<tr><td>${o.day}</td><td>${o.dow}</td><td class="num">${fmt(o.fc)}</td><td class="num">${fmt(o.act)}</td><td class="num">${o.sug}</td><td class="num">${o.adp}</td><td class="num">${o.rate==null?'—':o.rate+'%'}</td><td class="num">${o.notRun==null?'—':o.notRun}</td><td class="num">${o.mg}</td><td class="num">${fmt(o.mgkm)}</td><td class="num ${o.kpp&&o.bk?(o.kpp<o.bk?'down':'up'):''}">${fmt(o.kpp,1)}</td><td class="num">${fmt(o.bk,1)}</td><td class="num">${fmt(o.er,1)}</td><td class="num">${fmt(o.ot,1)}</td><td>${esc(o.by)} ${esc(o.at)}</td><td style="white-space:normal">${esc(o.note)}</td><td><a href="#" class="rvdel" data-d="${o.day}">清除</a></td></tr>`).join('')+'</tbody></table><p class="note">實際件數／每千件里程／空駛率要等該日資料同步後才會出現；「實際未開」＝採用班次在該日封櫃明細查無（最多檢查前 40 班）。</p>';$$('#rvTable a.rvdel').forEach(a=>a.onclick=async ev=>{ev.preventDefault();if(!confirm(a.dataset.d+' 的登記要清除嗎？'))return;try{await api({action:'decide_delete',day:a.dataset.d});rvRun()}catch(e){alert(e.message)}})}catch(e){t.innerHTML='<p class="note">'+esc(e.message)+'</p>'}}
+
+/* ================= 資料倉 ================= */
+let DATA_INIT=false,CATALOG=[],CUR=null;
+async function initData(){DATA_INIT=true;try{const j=await api({action:'meta',k:'catalog'});CATALOG=(j.v||[]).sort((a,b)=>(b.star||0)-(a.star||0)||(+a.rid)-(+b.rid))}catch(e){$('#rlist').innerHTML='<p class="note">'+esc(e.message)+'</p>';return}renderList();
+ $$('[data-meta]').forEach(el=>el.onclick=()=>openMeta(el.dataset.meta,el.textContent))}
+function renderList(){const q=$('#rq').value.trim().toLowerCase();const order=['運務','車輛管理','新竹物流管理報表','貨櫃追蹤','自動化管理報表','99-測試區','跨境','貨物查詢','站所','數位發展中心','新瑞運輸管理報表','新瑞宅配管理報表'];let h='';for(const c of order){const its=CATALOG.filter(r=>r.cls===c&&(!q||(r.rid+' '+r.name+' '+r.use).toLowerCase().includes(q)));if(!its.length)continue;h+=`<div class="grp">${esc(c)} <span class="muted">${its.length}</span></div>`+its.map(r=>`<div class="it ${CUR?.rid===r.rid?'on':''}" data-rid="${r.rid}"><span class="rid">${r.rid}</span><span>${esc(r.name.replace(/^【[^】]*】/,''))}</span><span class="st">${r.risk?'⚠':'★'.repeat(r.star||0)}</span></div>`).join('')}$('#rlist').innerHTML=h||'<p class="note">無符合</p>';$$('#rlist .it').forEach(el=>el.onclick=()=>openReport(el.dataset.rid))}
+$('#rq').oninput=renderList;
+async function openReport(rid){CUR=CATALOG.find(r=>r.rid===rid);renderList();const r=CUR;const pn=$('#rpanel');
+ pn.innerHTML=`<div class="card"><h3><span class="rid" style="color:var(--acc)">${r.rid}</span> ${esc(r.name)} <span class="star">${'★'.repeat(r.star||0)}</span></h3>
+ <dl class="kv"><dt>類別</dt><dd>${esc(r.cls)}</dd><dt>粒度</dt><dd>${esc(r.grain||'—')}</dd><dt>用途</dt><dd>${esc(r.use||'—')}</dd>${r.keys?`<dt>關鍵欄位</dt><dd>${esc(r.keys)}</dd>`:''}${r.caveat?`<dt>踩雷</dt><dd style="color:var(--warn)">${esc(r.caveat)}</dd>`:''}${r.risk?`<dt>限制</dt><dd style="color:var(--warn)">⚠ 不送查詢：${esc(r.risk)}</dd>`:''}</dl>
+ <details><summary>參數（RPT_COND=<code>${esc(r.rpt_cond)}</code>）</summary><table><thead><tr><th>欄</th><th>標籤</th><th>型別</th><th>預設</th></tr></thead><tbody>${(r.params||[]).map(p=>`<tr><td><code>${p.name}</code></td><td>${esc(p.label)}</td><td>${p.type}</td><td><code>${esc(p.default)}</code></td></tr>`).join('')}</tbody></table></details>
+ ${r.header?.length?`<details><summary>輸出欄位（${r.header.length}）</summary><div class="chips">${r.header.map(h=>`<span>${esc(h)}</span>`).join('')}</div></details>`:''}</div>
+ <h2 style="margin-top:12px">已抓取檔案 <span class="small muted" id="fcount"><span class="spin"></span></span></h2><div class="bar"><input id="fq" type="search" placeholder="篩日期，如 202609"><span class="note">點檔名預覽（前 3,000 列）；⬇ 下載整檔 CSV / Excel</span></div><div class="scroll" id="flist" style="max-height:260px"></div><div id="fview"></div>`;
+ try{const j=await api({action:'raw_list',rid});const items=j.items.filter(i=>i.name.endsWith('.csv.gz'));$('#fcount').textContent=`${items.length} 檔`;const render=()=>{const q=$('#fq').value.trim();const its=items.filter(i=>!q||i.name.includes(q)).slice().reverse();$('#flist').innerHTML=its.length?'<table><thead><tr><th>檔案</th><th class="num">大小(gz)</th><th>更新</th><th></th></tr></thead><tbody>'+its.map(i=>`<tr><td><a href="#" data-f="${esc(i.name)}" class="pv">${esc(i.name.replace('.csv.gz',''))}</a></td><td class="num">${fmt(i.size/1024,0)} KB</td><td>${esc((i.updated||'').slice(0,16).replace('T',' '))}</td><td><a href="#" data-f="${esc(i.name)}" class="dl">⬇ CSV</a> <a href="#" data-f="${esc(i.name)}" class="dx">⬇ Excel</a></td></tr>`).join('')+'</tbody></table>':'<p class="note">無檔案</p>';$$('#flist a').forEach(a=>a.onclick=ev=>{ev.preventDefault();const f=a.dataset.f;if(a.classList.contains('pv'))preview(rid,f);else if(a.classList.contains('dl'))downloadRaw(rid,f,'csv');else downloadRaw(rid,f,'xlsx')})};render();$('#fq').oninput=render}catch(e){$('#fcount').textContent=e.message}}
+async function fetchRaw(rid,f){const j=await api({action:'raw_url',path:`${rid}/${f}`});const r=await fetch(j.url);if(!r.ok)throw new Error('下載失敗 '+r.status);const ds=new DecompressionStream('gzip');const txt=await new Response(r.body.pipeThrough(ds)).text();return txt}
+function parseCsv(txt){const rows=[];let row=[],cell='',q=false;for(let i=0;i<txt.length;i++){const c=txt[i];if(q){if(c==='"'){if(txt[i+1]==='"'){cell+='"';i++}else q=false}else cell+=c}else{if(c==='"')q=true;else if(c===','){row.push(cell);cell=''}else if(c==='\n'){row.push(cell);rows.push(row);row=[];cell=''}else if(c!=='\r')cell+=c}}if(cell!==''||row.length){row.push(cell);rows.push(row)}return rows.filter(r=>r.length>1||(r[0]||'').trim())}
+function namesFor(rid,ncol){const r=CATALOG.find(x=>x.rid===rid);const base=(r?.csv_names&&r.csv_names.length?r.csv_names:(r?.header||[]));const out=[];for(let i=0;i<ncol;i++){const n=base[i]||`欄${i+1}`;out.push(n.replace(/^_hidden(\d+)$/,'(隱藏$1)'))}return out}
+async function preview(rid,f){const v=$('#fview');v.innerHTML='<p class="note"><span class="spin"></span> 下載解壓…</p>';try{const txt=await fetchRaw(rid,f);const rows=parseCsv(txt);const ncol=Math.max(...rows.map(r=>r.length));const names=namesFor(rid,ncol);let q='';const render=()=>{const rs=rows.filter(r=>!q||r.join(' ').toLowerCase().includes(q)).slice(0,3000);$('#pvt').innerHTML='<table><thead><tr><th>#</th>'+names.map(n=>`<th>${esc(n)}</th>`).join('')+'</tr></thead><tbody>'+rs.map((r,i)=>`<tr><td class="muted">${i+1}</td>`+names.map((_,j)=>`<td>${esc(r[j]??'')}</td>`).join('')+'</tr>').join('')+'</tbody></table>';$('#pvc').textContent=`${rs.length} / ${rows.length} 列`};
+ v.innerHTML=`<h2 style="margin-top:12px">${esc(f.replace('.csv.gz',''))} <span class="small muted" id="pvc"></span></h2><div class="bar"><input id="pvq" type="search" placeholder="篩選列"><span class="note">欄名由樣本自動對應；標「欄N」者為 CSV 隱藏欄</span></div><div class="scroll" id="pvt"></div>`;render();$('#pvq').oninput=e=>{q=e.target.value.trim().toLowerCase();render()}}catch(e){v.innerHTML='<p class="note">'+esc(e.message)+'</p>'}}
+async function downloadRaw(rid,f,type){try{const txt=await fetchRaw(rid,f);const rows=parseCsv(txt);const ncol=Math.max(...rows.map(r=>r.length));const names=namesFor(rid,ncol);const base=`${rid}_${f.replace('.csv.gz','')}`;if(type==='csv'){dlText('\ufeff'+[names.join(','),...rows.map(r=>r.map(c=>/[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c).join(','))].join('\n'),base+'.csv','text/csv')}else{await exportXlsx(names.map((n,i)=>[i,n]),rows.map(r=>Object.fromEntries(r.map((c,i)=>[i,c]))),base)}}catch(e){alert(e.message)}}
+async function openMeta(k,title){CUR=null;renderList();const pn=$('#rpanel');pn.innerHTML=`<h2>${esc(title)} <span class="small muted" id="mc"><span class="spin"></span></span></h2><div class="bar"><input id="mq" type="search" placeholder="篩選"><button id="mx">⬇ Excel</button></div><div class="scroll" id="mt"></div>`;
+ try{const j=await api({action:'meta',k});const v=j.v||{};let cols,rows;if(k==='trip_km'){cols=[['code','班次'],['name','名稱'],['from','起站'],['to','迄站'],['dep','預定離'],['arr','預定進'],['km_med','里程(中位)'],['km_min','最小'],['km_max','最大'],['n','樣本']];rows=Object.entries(v).map(([c,t])=>({code:c,...t}))}
+ else if(k==='trip_load'){cols=[['code','班次'],['name','名稱'],['from','起站'],['to','迄站'],['days','出現天數'],['n','櫃數'],['ot','加班櫃'],['low55','低載櫃'],['low55_share','低載比'],['avg_load','平均積載率'],['med_load','中位積載率']];rows=Object.entries(v).map(([c,t])=>({code:c,...t,low55_share:Math.round(t.low55_share*100)+'%'})).sort((a,b)=>b.low55-a.low55)}
+ else if(k==='idle_trips'){cols=[['code','班次'],['name','名稱'],['from','起站'],['to','迄站'],['km','里程'],['n','出現天數'],['tot','累計無效里程']];rows=Object.entries(v).map(([c,t])=>({code:c,...t,tot:t.km!=null?Math.round(t.km*t.n):''})).sort((a,b)=>(b.tot||0)-(a.tot||0))}
+ else{cols=[['pair','起站→迄站'],['pairs_2plus','同日≥2櫃低載天數'],['days','有低載天數'],['low_total','低載櫃合計']];rows=Object.entries(v).map(([p,t])=>({pair:p,...t})).sort((a,b)=>b.pairs_2plus-a.pairs_2plus)}
+ const render=()=>{const q=$('#mq').value.trim().toLowerCase();const rs=rows.filter(r=>!q||Object.values(r).join(' ').toLowerCase().includes(q));$('#mc').textContent=`${rs.length} 筆（更新 ${(j.updated_at||'').slice(0,16).replace('T',' ')}）`;$('#mt').innerHTML='<table><thead><tr>'+cols.map(c=>`<th>${c[1]}</th>`).join('')+'</tr></thead><tbody>'+rs.slice(0,3000).map(r=>'<tr>'+cols.map(c=>`<td>${esc(r[c[0]]??'')}</td>`).join('')+'</tr>').join('')+'</tbody></table>'};render();$('#mq').oninput=render;$('#mx').onclick=()=>exportXlsx(cols,rows,k)}catch(e){$('#mt').innerHTML='<p class="note">'+esc(e.message)+'</p>'}}
+
+/* ================= 更新狀態 ================= */
+async function loadStatus(){const b=$('#sbanner');b.className='banner';b.innerHTML='<span class="spin"></span> 載入…';try{const j=await api({action:'status'});const sync=j.sync?.v;const y=new Date(Date.now()-864e5);const yday=y.toISOString().slice(0,10);
+ const core=j.coverage.filter(c=>c.star>=3);const stale=core.filter(c=>c.max_day&&c.max_day<yday&&['41','83','2','3','205','206','79','606'].includes(c.rid));const miss=core.reduce((a,c)=>a+(c.missing||[]).length,0);
+ const ok=!stale.length;b.className='banner '+(ok?'ok':'warn');b.innerHTML=`<b>${ok?'✔ 資料是新的':'⚠ 需要更新'}</b>　最近一次同步：${sync?esc(sync.at.slice(0,16).replace('T',' ')):'—'}（${sync?esc(sync.host):''}）　核心日報資料截至：${esc(core.filter(c=>c.max_day).map(c=>c.max_day).sort().slice(-1)[0]||'—')}；昨天 ${yday}${stale.length?`，<b>${stale.map(c=>c.rid).join('/')} 尚未到昨天</b>`:''}${miss?`；區間內缺 ${miss} 天份（見下表）`:''}。<br><span class="small muted">判定：核心日報（41/83/2/3/205/206/79/606）最新日期 ≥ 昨天即為「新的」。排程 13:00 跑完才會到昨天。</span>`;
+ $('#covTable').innerHTML='<table><thead><tr><th>星</th><th>代號</th><th>名稱</th><th>類別</th><th>最早</th><th>最新</th><th class="num">天數</th><th>缺漏</th><th class="num">檔數</th><th class="num">大小</th><th>最後錯誤</th></tr></thead><tbody>'+j.coverage.map(c=>`<tr><td>${'★'.repeat(c.star||0)}</td><td><a href="#" data-rid="${c.rid}" class="gor">${c.rid}</a></td><td>${esc(c.name)}</td><td class="muted">${esc(c.cls)}</td><td>${c.min_day||'—'}</td><td class="${c.max_day&&c.max_day<yday&&c.star>=3?'up':''}">${c.max_day||'—'}</td><td class="num">${fmt(c.days)}</td><td><div class="chips">${(c.missing||[]).slice(0,12).map(m=>`<span>${iso(m).slice(5)}</span>`).join('')}${(c.missing||[]).length>12?`<span>…共 ${c.missing.length}</span>`:''}</div></td><td class="num">${fmt(c.files)}</td><td class="num">${fmt((c.bytes||0)/1048576,1)} MB</td><td class="small up">${esc((c.last_err||'').slice(0,80))}</td></tr>`).join('')+'</tbody></table>';
+ $$('#covTable .gor').forEach(a=>a.onclick=ev=>{ev.preventDefault();$$('#tabs button')[1].click();setTimeout(()=>openReport(a.dataset.rid),300)});
+ $('#logTable').innerHTML='<table><thead><tr><th>時間</th><th>報表</th><th>鍵</th><th>狀態</th><th class="num">列數</th><th class="num">秒</th></tr></thead><tbody>'+j.log.map(l=>`<tr><td>${esc((l.at||'').slice(0,19).replace('T',' '))}</td><td>${l.rid}</td><td>${esc(l.key)}</td><td class="${l.status==='ok'?'':'up'}">${esc(l.status)}</td><td class="num">${fmt(l.rows)}</td><td class="num">${fmt(l.secs,1)}</td></tr>`).join('')+'</tbody></table>';
+ $('#syncBadge').textContent=sync?'同步 '+sync.at.slice(5,16).replace('T',' '):'未同步'}catch(e){b.className='banner warn';b.textContent=e.message}}
+
+/* ================= 文件 ================= */
+let DOCS_INIT=false;const DOCS=[['handbook.html','📘','nls 報表盤點手冊','81 張報表 × 12 類：參數、輸出欄位、抽樣、踩雷、程式範例'],['proposal.html','📝','運務處資料分析提案','盤點結論、KPI 樹、期間觀察、8 個分析主題、路線圖'],['proposal.docx','📄','提案 Word 版（運務處資料分析提案.docx）','同上，可列印／轉 PDF'],['daily.html','📊','每日運行狀況剖析（離線單檔）','資料內嵌的原型看板，不需登入、可離線開啟']];
+function initDocs(){if(DOCS_INIT)return;DOCS_INIT=true;$('#docCards').innerHTML=DOCS.map(d=>`<div class="card doccard"><div class="ic">${d[1]}</div><div style="flex:1"><h3>${d[2]}</h3><p>${d[3]}</p></div><button data-n="${d[0]}" class="pri">${d[0].endsWith('.docx')?'下載':'開啟'}</button></div>`).join('');$$('#docCards button').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const j=await api({action:'doc_url',name:b.dataset.n});if(b.dataset.n.endsWith('.docx')){const a=document.createElement('a');a.href=j.url;a.download='運務處資料分析提案.docx';a.click()}else{$('#docView').classList.remove('hide');$('#docFrame').src=j.url;$('#docOpen').href=j.url;$('#docView').scrollIntoView({behavior:'smooth'})}}catch(e){alert(e.message)}finally{b.disabled=false}});$('#docClose').onclick=()=>{$('#docView').classList.add('hide');$('#docFrame').src='about:blank'}}
+
+/* ================= 進入 ================= */
+async function enter(){$('#login').classList.add('hide');$('#app').classList.remove('hide');try{await loadKpi();allDash();cmp()}catch(e){$('#dashNote').textContent=e.message}try{const j=await api({action:'meta',k:'sync'});if(j.v)$('#syncBadge').textContent='同步 '+j.v.at.slice(5,16).replace('T',' ')}catch(e){}}
+if(AUTH?.token)enter();
+</script>
+</body>
+</html>

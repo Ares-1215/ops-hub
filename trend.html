@@ -1,0 +1,26 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>趨勢｜運務資料中樞</title><link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
+<body><main>
+<h1 class="pg">趨勢</h1><p class="sub">一次看一個指標：線＝每日值，淡綠帶＝前 4 週同星期的高低區間，虛線＝基準平均。先讀結論句，再看圖。</p>
+<div class="bar"><label>指標 <select id="metric"></select></label><label>期間 <input id="from" type="date"> ～ <input id="to" type="date"></label><label>星期 <select id="dow"><option value="">全部</option><option>一</option><option>二</option><option>三</option><option>四</option><option>五</option><option>六</option><option>日</option></select></label><button data-r="28">近 4 週</button><button data-r="56">近 8 週</button><button data-r="91">近 13 週</button><button data-r="999">全部</button><button id="csv">⬇ CSV</button></div>
+<div class="insight" id="ins"></div>
+<div class="card"><div id="main"></div></div>
+<h2>並排比較 <span class="small muted">勾 2～4 個指標一起看（各自座標）</span></h2>
+<div class="bar" id="cmpBar"></div>
+<div class="grid2" id="cmpCharts"></div>
+<h2>逐日表</h2><div class="scroll" id="tbl"></div>
+</main>
+<script>
+(async()=>{if(!shell('trend.html'))return;await loadRows();const ms=$('#metric');KPIS.forEach(([k,n])=>{const o=document.createElement('option');o.value=k;o.textContent=n;ms.appendChild(o)});ms.value=qs('k')||'km_per_kpiece';
+ const last=ROWS[ROWS.length-1].day;$('#to').value=iso(last);$('#from').value=iso(ROWS[Math.max(0,ROWS.length-56)].day);
+ $$('.bar button[data-r]').forEach(b=>b.onclick=()=>{const n=+b.dataset.r;$('#from').value=iso(ROWS[Math.max(0,ROWS.length-n)].day);$('#to').value=iso(last);draw()});
+ ms.onchange=()=>{history.replaceState(null,'','trend.html?k='+ms.value);draw()};$('#from').onchange=$('#to').onchange=$('#dow').onchange=draw;
+ $('#cmpBar').innerHTML=KPIS.slice(0,16).map(([k,n])=>`<label><input type="checkbox" value="${k}" ${['ot_total','low55_n','idle_trips'].includes(k)?'checked':''}> ${n}</label>`).join('');$$('#cmpBar input').forEach(c=>c.onchange=drawCmp);
+ $('#csv').onclick=()=>{const l=filt();const cols=['day','dow',...KPIS.map(k=>k[0])];dlText('﻿'+[cols.join(','),...l.map(r=>cols.map(c=>r[c]??'').join(','))].join('\n'),'trend.csv','text/csv')};
+ draw()})();
+function filt(){const f=ymd($('#from').value),t=ymd($('#to').value),w=$('#dow').value;return ROWS.filter(r=>r.day>=f&&r.day<=t&&(!w||r.dow===w))}
+function draw(){const k=$('#metric').value;const m=KPI[k];const l=withBaseline(filt(),k);$('#ins').innerHTML=insight(k,l);
+ chart('#main',l,[{k,n:m.name,c:'var(--acc)',band:[k+'_bmin',k+'_bmax']},{k:k+'_bavg',n:'同星期基準平均',c:'var(--grey)',dash:true,nodots:true}],{zero:false,h:280});
+ $('#tbl').innerHTML='<table><thead><tr><th>日期</th><th>週</th><th class="num">'+m.name+'</th><th class="num">基準平均</th><th class="num">差</th><th class="num">件數</th><th class="num">實際里程</th><th class="num">空駛率</th><th class="num">加班台數</th><th class="num">低載櫃</th><th class="num">空櫃班次</th></tr></thead><tbody>'+l.slice().reverse().map(r=>{const d=r[k]!=null&&r[k+'_bavg']!=null?r[k]-r[k+'_bavg']:null;return `<tr class="${r.dow==='六'||r.dow==='日'?'we':''}"><td>${dayLink(r.day)}</td><td>${r.dow}</td><td class="num">${fmt(r[k],m.dec)}</td><td class="num">${fmt(r[k+'_bavg'],m.dec)}</td><td class="num ${d==null||m.dir===0?'':(d*m.dir>0?'down':'up')}">${d==null?'—':(d>0?'+':'')+fmt(d,m.dec)}</td><td class="num">${fmt(r.pieces)}</td><td class="num">${fmt(r.km_act)}</td><td class="num">${fmt(r.empty_rate,1)}</td><td class="num">${fmt(r.ot_total)}</td><td class="num">${fmt(r.low55_n)}</td><td class="num">${fmt(r.idle_trips)}</td></tr>`}).join('')+'</tbody></table>';drawCmp()}
+function drawCmp(){const ks=$$('#cmpBar input:checked').map(c=>c.value).slice(0,4);const l=filt();$('#cmpCharts').innerHTML=ks.map(k=>`<div class="card"><h3>${KPI[k].name}</h3><div id="c_${k}"></div><div class="note" id="i_${k}"></div></div>`).join('');ks.forEach(k=>{const wl=withBaseline(l,k);chart('#c_'+k,wl,[{k,n:KPI[k].name,c:'var(--blue)',band:[k+'_bmin',k+'_bmax']}],{zero:false,h:200});$('#i_'+k).innerHTML=insight(k,l)})}
+</script></body></html>

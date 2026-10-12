@@ -1,0 +1,30 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>加班檢核｜運務資料中樞</title><link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
+<body><main>
+<h1 class="pg">加班檢核</h1><p class="sub">三件事：加班卻低載（最該檢討）、星期別加班結構（週五高於週四＝週末前清倉訊號）、南北方向失衡。</p>
+<div class="grid2">
+  <div class="card"><h3>星期別加班（平日平均）</h3><div class="sub">83 六方向加班台數、205 加班封櫃數、南向−北向淨額</div><div id="otDow"></div></div>
+  <div class="card"><h3>方向失衡日（|南向−北向| ≥ 8，最近 60 天）</h3><div id="otImb" class="scroll" style="max-height:240px"></div></div>
+</div>
+<h2>加班卻低載的班次</h2>
+<div class="card"><div class="bar">
+ <label>排序 <select id="otSort"><option value="low55">加班卻低載次數</option><option value="ot_days">加班天數</option><option value="avg">平均積載率（低→高）</option></select></label>
+ <label>最少加班天數 <input id="otMin" type="number" value="3" style="width:60px"></label>
+ <label>方向 <select id="otDir"><option value="">全部</option><option>南向</option><option>北向</option><option>同區</option></select></label>
+ <label>起站 <input id="otSt" type="text" placeholder="例 1235" style="width:90px"></label>
+ <input id="otQ" type="search" placeholder="篩站名/班次"><button id="otRun" class="pri">檢核</button><button id="otXls">⬇ Excel</button></div></div>
+<div class="scroll" id="otTable" style="max-height:60vh"></div>
+</main>
+<script>
+let OT_AGG=null,OT_ROWS=[];
+const OT_COLS=[['code','班次'],['name','名稱'],['route','起站→迄站'],['dir','方向'],['ot_days','加班天數'],['boxes','櫃數'],['low55','加班卻低載'],['avg','平均積載'],['dows','星期分布'],['last','最近'],['km','里程']];
+(async()=>{if(!shell('ot.html'))return;await loadRows();$('#otRun').onclick=otRun;$('#otXls').onclick=()=>exportXlsx(OT_COLS.map(c=>[c[0],c[1]]),OT_ROWS,'加班檢核');$('#otQ').oninput=otRender;
+ const wk=DOWS.split('').map(w=>{const l=ROWS.filter(r=>r.dow===w&&r.ot_total!=null);return {w,n:l.length,ot:avgOf(l,'ot_total'),net:avgOf(l,'ot_net_south'),seal:avgOf(l,'seal_ot'),kpp:avgOf(l,'km_per_kpiece')}});
+ $('#otDow').innerHTML='<table><thead><tr><th>星期</th><th class="num">天數</th><th class="num">加班台數(83)</th><th class="num">加班櫃(205)</th><th class="num">南向−北向</th><th class="num">每千件里程</th></tr></thead><tbody>'+wk.map(p=>`<tr><td>${p.w}</td><td class="num">${p.n}</td><td class="num">${fmt(p.ot,1)}</td><td class="num">${fmt(p.seal,1)}</td><td class="num ${p.net>0?'up':''}">${fmt(p.net,1)}</td><td class="num">${fmt(p.kpp,1)}</td></tr>`).join('')+'</tbody></table>'+(wk[4].ot>wk[3].ot?`<div class="insight">週五加班台數（${fmt(wk[4].ot,1)}）高於週四（${fmt(wk[3].ot,1)}），件數卻通常更少：符合「週末前清倉或固定班次」的訊號，建議清查週五加班的積載率。</div>`:'');
+ const imb=ROWS.slice(-60).filter(r=>Math.abs(r.ot_net_south||0)>=8).reverse();$('#otImb').innerHTML=imb.length?'<table><thead><tr><th>日期</th><th>週</th><th class="num">南向</th><th class="num">北向</th><th class="num">淨額</th><th class="num">每千件里程</th><th class="num">空車頭里程</th></tr></thead><tbody>'+imb.map(r=>`<tr><td>${dayLink(r.day)}</td><td>${r.dow}</td><td class="num">${r.ot_south}</td><td class="num">${r.ot_north}</td><td class="num ${r.ot_net_south>0?'up':'down'}">${r.ot_net_south>0?'+':''}${r.ot_net_south}</td><td class="num">${fmt(r.km_per_kpiece,1)}</td><td class="num">${fmt(r.km_empty_head)}</td></tr>`).join('')+'</tbody></table>':'<p class="note">無</p>';
+ otRun()})();
+async function otRun(){if(!OT_AGG){try{const j=await api({action:'meta',k:'ot_agg'});OT_AGG=j.v||{}}catch(e){OT_AGG={}}}const min=+$('#otMin').value,dir=$('#otDir').value,sort=$('#otSort').value,st=$('#otSt').value.trim();
+ OT_ROWS=Object.entries(OT_AGG).filter(([c,t])=>t.ot_days>=min&&(!dir||t.dir===dir)&&(!st||t.from.startsWith(st))).map(([code,t])=>({code,name:t.name,from:t.from,to:t.to,route:`${t.from}→${t.to}`,dir:t.dir,ot_days:t.ot_days,boxes:t.boxes,low55:t.low55,avg:t.avg,dows:DOWS.split('').map(w=>t.dow[w]?`${w}${t.dow[w]}`:'').filter(Boolean).join(' '),last:iso(t.last),km:t.km}));
+ OT_ROWS.sort((a,b)=>sort==='avg'?a.avg-b.avg:b[sort]-a[sort]);otRender()}
+function otRender(){const q=$('#otQ').value.trim().toLowerCase();const rows=OT_ROWS.filter(r=>!q||(r.code+r.name+r.route).toLowerCase().includes(q));$('#otTable').innerHTML=rows.length?'<table><thead><tr>'+OT_COLS.map(c=>`<th>${c[1]}</th>`).join('')+'</tr></thead><tbody>'+rows.slice(0,800).map(r=>'<tr>'+OT_COLS.map(c=>{const k=c[0],v=r[k];if(k==='code')return `<td>${tripLink(r.code)}</td>`;if(k==='route')return `<td>${stLink(r.from)}→${stLink(r.to)}</td>`;if(['ot_days','boxes','low55','km'].includes(k))return `<td class="num ${k==='low55'&&v>=3?'up':''}">${fmt(v)}</td>`;if(k==='avg')return `<td class="num">${fmt(v,1)}</td>`;return `<td>${esc(v)}</td>`}).join('')+'</tr>').join('')+'</tbody></table>':'<p class="note">無資料</p>'}
+</script></body></html>

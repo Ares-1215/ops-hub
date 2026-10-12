@@ -2,7 +2,7 @@
 
 https://ares-1215.github.io/ops-hub/ ・ 新竹物流 運務處資料中樞：每日運行狀況剖析看板 / 報表資料倉 / 更新狀態 / 文件。
 
-- 前端：`index.html` 單檔（零依賴；Excel 匯出時才從 cdnjs 載入 SheetJS）。
+- 前端：多頁靜態站（`index.html` 總覽、`day.html` 當日快照、`trend.html` 趨勢、`cut.html` 減開清單、`merge.html` 併櫃模擬、`ot.html` 加班檢核、`review.html` 決策回看、`station.html?code=` 站所頁、`trip.html?code=` 班次頁、`data.html?rid=` 資料倉、`status.html`、`docs.html`），共用 `assets/app.js`／`app.css`；零依賴，Excel 匯出時才從 cdnjs 載入 SheetJS。舊單頁版在 `_old/`。
 - 後端：Supabase（表 `nx_daily / nx_detail / nx_coverage / nx_pull_log / nx_meta / nx_users`，Storage `nx-raw / nx-docs`）＋ Edge Function `nxhub`（登入 token 驗證；寫入走 ingest token）。
 - 資料來源：HCT nls 報表平台（內網，唯讀），抓取引擎在 `C:\Users\26516\notebookLM\nls-explorer`。
 - 同步：`tools/hub_sync.py`（回補最近 N 天 → 建 KPI → 上傳）；Windows 排程 `OpsHub-Daily` 每天 13:00 跑 `tools/update_daily.ps1`。

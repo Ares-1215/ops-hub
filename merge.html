@@ -1,0 +1,37 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>併櫃模擬｜運務資料中樞</title><link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
+<body><main>
+<h1 class="pg">併櫃模擬</h1><p class="sub">兩櫃都沒裝滿，把貨併到一櫃、少開一車。A：路線完全相同；B：同起站、迄站同一區但不同站（順路多卸一站，後一站會晚到，需運指評估時效）。</p>
+<div class="card"><div class="bar">
+ <label>日期 <select id="mgDay"></select></label>
+ <label>模式 <select id="mgMode"><option value="">全部</option><option value="A">A 同起站同迄站</option><option value="B">B 同起站、迄站同區</option></select></label>
+ <label>合計積載 ≤ <input id="mgCap" type="number" value="100" style="width:60px">%</label>
+ <label>延後 ≤ <input id="mgDelay" type="number" value="120" style="width:60px"> 分</label>
+ <label><input id="mgReg" type="checkbox"> 只看兩邊都是正班</label>
+ <label>方向 <select id="mgDir"><option value="">全部</option><option>南向</option><option>北向</option><option>同區</option></select></label>
+ <label>起站 <input id="mgSt" type="text" placeholder="例 1235" style="width:90px"></label>
+ <input id="mgQ" type="search" placeholder="篩站名/班次"><button id="mgRun" class="pri">模擬</button></div></div>
+<div class="tiles" id="mgTiles" style="margin:10px 0"></div>
+<div class="bar"><button id="mgXls">⬇ Excel</button><button id="mgSave" class="pri">登記採用的配對</button><span id="mgSaved" class="note"></span></div>
+<div class="scroll" id="mgTable" style="max-height:62vh"></div>
+<p class="note">延後＝被併那櫃的封櫃時間晚於保留班次規定離站的分鐘數（保留班次要等多久）；省里程＝被併掉那班的班次里程（113 回填中位數；無資料則不計）。一正班一加班時一律併掉加班。</p>
+</main>
+<script>
+let MG_ROWS=[],DETAIL={};
+const MG_COLS=[['mode','模式'],['from','起站'],['keep_name','保留班次'],['load_keep','保留積載'],['dep_keep','保留規定離站'],['to1','保留迄站'],['cut_name','併入班次'],['load_cut','併入積載'],['seal_cut','併入封櫃'],['to2','併入迄站'],['sum','合計'],['delay_min','延後(分)'],['dir','方向'],['cut_km','省 km'],['save_nt','省 元'],['cat','類別']];
+(async()=>{if(!shell('merge.html'))return;await loadRows();const sel=$('#mgDay');ROWS.slice().reverse().forEach(r=>{const o=document.createElement('option');o.value=r.day;o.textContent=iso(r.day)+'（'+r.dow+'）';sel.appendChild(o)});const q=qs('d');sel.value=q&&BY[q]?q:ROWS[ROWS.length-1].day;
+ $('#mgRun').onclick=mgRun;sel.onchange=mgRun;$('#mgXls').onclick=()=>exportXlsx(MG_COLS.map(c=>[c[0],c[1]]),MG_ROWS,'併櫃模擬_'+sel.value);$('#mgSave').onclick=mgSave;$('#mgQ').oninput=()=>mgRender();mgRun()})();
+async function mgRun(){const day=$('#mgDay').value;history.replaceState(null,'','merge.html?d='+day);$('#mgTable').innerHTML='<p class="note"><span class="spin"></span> 載入…</p>';try{if(!DETAIL[day]){const j=await api({action:'detail',day:iso(day),kinds:['merge_pairs']});DETAIL[day]=j.rows[0]?.payload||[]}
+ const price=PRICE();const mode=$('#mgMode').value,cap=+$('#mgCap').value,maxDelay=+$('#mgDelay').value,reg=$('#mgReg').checked,dir=$('#mgDir').value,st=$('#mgSt').value.trim();
+ MG_ROWS=DETAIL[day].filter(p=>(!mode||p.mode===mode)&&p.sum<=cap&&(p.delay_min==null||p.delay_min<=maxDelay)&&(!reg||(p.cat_keep==='正班'&&p.cat_cut==='正班'))&&(!dir||p.dir===dir)&&(!st||p.from.startsWith(st))&&p.from!==p.to1).map(p=>({...p,keep_name:`${p.keep} ${p.keep_name}`,cut_name:`${p.cut} ${p.cut_name}`,cat:`${p.cat_keep}/${p.cat_cut}`,save_nt:Math.round((p.cut_km||0)*price)}));
+ let adopted=new Set();try{const j=await api({action:'decide_list',from:iso(day),to:iso(day)});if(j.rows.length){adopted=new Set((j.rows[0].merges||[]).map(m=>m.box_cut));$('#mgSaved').textContent=`已登記配對 ${adopted.size} 組`}else $('#mgSaved').textContent=''}catch(e){}
+ mgRender(adopted)}catch(e){$('#mgTable').innerHTML='<p class="note">'+esc(e.message)+'</p>'}}
+function mgRender(adopted){const q=$('#mgQ').value.trim().toLowerCase();const prev=adopted||new Set($$('#mgTable input[type=checkbox]:checked').map(c=>c.value));const rows=MG_ROWS.filter(r=>!q||(r.from+r.keep_name+r.cut_name+r.to1+r.to2).toLowerCase().includes(q));
+ $('#mgTable').innerHTML=rows.length?'<table><thead><tr><th>採用</th>'+MG_COLS.map(c=>`<th>${c[1]}</th>`).join('')+'</tr></thead><tbody>'+rows.map(r=>`<tr><td><input type="checkbox" value="${esc(r.box_cut)}" ${prev.has(r.box_cut)?'checked':''}></td>`+MG_COLS.map(c=>{const k=c[0],v=r[k];if(k==='keep_name')return `<td>${tripLink(r.keep,v)}</td>`;if(k==='cut_name')return `<td>${tripLink(r.cut,v)}</td>`;if(k==='from'||k==='to1'||k==='to2')return `<td>${stLink(v)}</td>`;if(['load_keep','load_cut','sum','cut_km','save_nt','delay_min'].includes(k))return `<td class="num">${v==null?'—':fmt(v,k==='sum'?1:0)}</td>`;return `<td>${esc(v)}</td>`}).join('')+'</tr>').join('')+'</tbody></table>':'<p class="note">無配對候選</p>';
+ $$('#mgTable input[type=checkbox]').forEach(c=>c.onchange=mgSum);mgSum()}
+function mgSum(){const day=$('#mgDay').value;const pieces=BY[day]?.pieces;const price=PRICE();const sel=new Set($$('#mgTable input[type=checkbox]:checked').map(c=>c.value));const pick=MG_ROWS.filter(r=>sel.has(r.box_cut));const km=l=>l.reduce((a,b)=>a+(b.cut_km||0),0);
+ $('#mgTiles').innerHTML=[['候選配對（=可省車次）',MG_ROWS.length,0],['A 同起迄',MG_ROWS.filter(r=>r.mode==='A').length,0],['B 同區多點',MG_ROWS.filter(r=>r.mode==='B').length,0],['候選可省 km',km(MG_ROWS),0],['候選可省 元',km(MG_ROWS)*price,0],['採用配對',pick.length,0],['採用可省 km',km(pick),0],['採用可省 元/件',pieces?km(pick)*price/pieces:null,3]].map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v">${fmt(v,d)}</div></div>`).join('')}
+async function mgSave(){const day=$('#mgDay').value;const dayIso=iso(day);const sel=new Set($$('#mgTable input[type=checkbox]:checked').map(c=>c.value));const merges=MG_ROWS.filter(r=>sel.has(r.box_cut)).map(r=>({mode:r.mode,from:r.from,keep:r.keep,cut:r.cut,box_keep:r.box_keep,box_cut:r.box_cut,to1:r.to1,to2:r.to2,sum:r.sum,delay_min:r.delay_min,cut_km:r.cut_km}));$('#mgSave').disabled=true;
+ try{let prev={};try{const j=await api({action:'decide_list',from:dayIso,to:dayIso});if(j.rows.length)prev=j.rows[0]}catch(e){}
+ await api({action:'decide_save',day:dayIso,forecast:prev.forecast||{},params:prev.params||{},suggested:prev.suggested||[],adopted:prev.adopted||[],merges,note:prev.note||''});$('#mgSaved').textContent=`已登記 ${merges.length} 組配對（${new Date().toLocaleString('zh-TW',{hour12:false})}）`}catch(e){alert(e.message)}finally{$('#mgSave').disabled=false}}
+</script></body></html>

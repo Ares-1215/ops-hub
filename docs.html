@@ -1,0 +1,34 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>文件｜運務資料中樞</title><link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
+<body><main>
+<h1 class="pg">文件</h1><p class="sub">報表盤點手冊、分析提案、離線看板；以及這個中樞的資料流程。</p>
+<div class="grid2" id="docCards"></div>
+<div id="docView" class="hide" style="margin-top:12px"><div class="bar"><button id="docClose">✕ 關閉</button><a id="docOpen" target="_blank">在新分頁開啟</a></div><iframe class="doc" id="docFrame"></iframe></div>
+<h2>資料流程</h2>
+<div class="card"><pre>nls 報表平台（內網 09:00～23:59，唯讀）
+   │  deep_pull.py / hub_sync.py（公司電腦，每日 13:00）
+   ▼
+C:\Users\26516\notebookLM\nls-explorer\data\&lt;報表&gt;\&lt;日期&gt;.csv      ← 原始 CSV（本機資料倉）
+   │  build_dataset.py → daily_kpi.csv / detail/&lt;日&gt;.json
+   │  build_tools.py   → trip_dow / trip_hist / ot_agg / merge_pairs
+   │  build_stations.py→ stations/&lt;站&gt;.json / station_index
+   ▼
+Supabase（nx_daily / nx_detail / nx_trip_hist / nx_decisions / nx_coverage / nx_pull_log / nx_meta + Storage nx-raw / nx-docs）
+   │  Edge Function nxhub（登入 token 驗證；寫入走 ingest token）
+   ▼
+本站 ares-1215.github.io/ops-hub（總覽 / 當日 / 趨勢 / 減開 / 併櫃 / 加班 / 回看 / 站所 / 班次 / 資料倉 / 狀態 / 文件）</pre></div>
+<h2>口徑</h2>
+<div class="card"><ul>
+<li><b>估算幹線運輸件成本</b>＝實際里程 × 單價 ÷ 件數。單價預設 23 元/km（9 月件成本分析：8 個同量日運輸費用 ÷ 實跑里程皆 22.85～23.13）。月底可用 626 科目實際數校正。</li>
+<li><b>每千件里程</b>＝41 實際里程合計 ÷ 606 所合計件數 × 1000；<b>空駛率</b>＝(空櫃里程＋空車頭里程) ÷ 實際里程。</li>
+<li><b>差異歸因</b>：每千件里程 = 里程/件數，與基準的差精確拆成 件數效應 ＋ 空駛里程效應 ＋ 重櫃里程效應 ＋ 殘差。</li>
+<li><b>基準</b>＝前 4 週同星期平均；趨勢圖的帶＝前 4 週同星期的最小～最大。</li>
+<li><b>低載</b>＝205 發送積載率 0&lt;x≤55%；<b>加班台數</b>＝83 六欄非空格數；<b>空櫃班次</b>＝206 運行表班次對應 31 主檔名稱含「空櫃/空車」；<b>無效里程</b>＝空櫃班次 × 113 班次里程中位數。</li>
+<li><b>到著準點</b>＝79 進站時間 ≤ 規定進站＋15 分；<b>卸時</b>＝79 卸時（分）。</li>
+</ul></div>
+</main>
+<script>
+const DOCS=[['handbook.html','📘','nls 報表盤點手冊','81 張報表 × 12 類：參數、輸出欄位、抽樣、踩雷、程式範例'],['proposal.html','📝','運務處資料分析提案','盤點結論、KPI 樹、期間觀察、8 個分析主題、路線圖'],['proposal.docx','📄','提案 Word 版','同上，可列印／轉 PDF'],['daily.html','📊','每日運行狀況剖析（離線單檔）','資料內嵌的原型看板，不需登入、可離線開啟']];
+(async()=>{if(!shell('docs.html'))return;$('#docCards').innerHTML=DOCS.map(d=>`<div class="card doccard"><div class="ic">${d[1]}</div><div style="flex:1"><h3>${d[2]}</h3><p>${d[3]}</p></div><button data-n="${d[0]}" class="pri">${d[0].endsWith('.docx')?'下載':'開啟'}</button></div>`).join('');
+ $$('#docCards button').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const j=await api({action:'doc_url',name:b.dataset.n});if(b.dataset.n.endsWith('.docx')){const a=document.createElement('a');a.href=j.url;a.download='運務處資料分析提案.docx';a.click()}else{$('#docView').classList.remove('hide');$('#docFrame').src=j.url;$('#docOpen').href=j.url;$('#docView').scrollIntoView({behavior:'smooth'})}}catch(e){alert(e.message)}finally{b.disabled=false}});$('#docClose').onclick=()=>{$('#docView').classList.add('hide');$('#docFrame').src='about:blank'}})();
+</script></body></html>

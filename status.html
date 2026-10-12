@@ -1,0 +1,22 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>更新狀態｜運務資料中樞</title><link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
+<body><main>
+<h1 class="pg">更新狀態</h1><p class="sub">每張報表資料到哪天、缺哪天、最後錯誤；最近抓取紀錄；怎麼更新。</p>
+<div id="sbanner" class="banner">載入中…</div>
+<h2>各報表資料涵蓋</h2><div class="scroll" id="covTable" style="max-height:none"></div>
+<h2>最近抓取紀錄 <span class="small muted">最新 150 筆</span></h2><div class="scroll" id="logTable"></div>
+<h2>怎麼更新</h2>
+<div class="card"><ul>
+<li><b>自動</b>：公司電腦的 Windows 工作排程 <code>OpsHub-Daily</code> 每天 13:00 執行 <code>tools\update_daily.ps1</code>：回補最近 3 天（同日重跑＝覆蓋）、回填班次里程、重建 KPI、上傳。漏跑會在下次開機補執行。</li>
+<li><b>手動</b>：在公司電腦對 Claude 說「<b>更新運務資料</b>」，或執行 <code>python C:\Users\26516\ops-hub\tools\hub_sync.py</code>（<code>--from 20260901 --to 20260930</code> 可回補區間）。</li>
+<li><b>月檔</b>：每月 5 日後自動補上個月的 626 科目費用／39 車輛總成本／55 油量，並刷新 31 班次主檔、96 貨櫃總表。</li>
+<li>nls 是公司內網（09:00～23:59 才連得到），抓取只能在公司電腦；本站只負責「看」。所有查詢唯讀，不會改動平台任何資料。</li>
+</ul></div>
+</main>
+<script>
+(async()=>{if(!shell('status.html'))return;const b=$('#sbanner');try{const j=await api({action:'status'});const sync=j.sync?.v;const yday=lISO(new Date(Date.now()-864e5));
+ const core=j.coverage.filter(c=>c.star>=3);const stale=core.filter(c=>c.max_day&&c.max_day<yday&&['41','83','2','3','205','206','79','606'].includes(c.rid));const miss=core.reduce((a,c)=>a+(c.missing||[]).length,0);const ok=!stale.length;
+ b.className='banner '+(ok?'ok':'warn');b.innerHTML=`<b>${ok?'✔ 資料是新的':'⚠ 需要更新'}</b>　最近一次同步：${sync?esc(sync.at.slice(0,16).replace('T',' ')):'—'}（${sync?esc(sync.host):''}）　核心日報資料截至：${esc(core.filter(c=>c.max_day).map(c=>c.max_day).sort().slice(-1)[0]||'—')}；昨天 ${yday}${stale.length?`，<b>${stale.map(c=>c.rid).join('/')} 尚未到昨天</b>`:''}${miss?`；區間內缺 ${miss} 天份（見下表）`:''}。<br><span class="small muted">判定：核心日報（41/83/2/3/205/206/79/606）最新日期 ≥ 昨天即為「新的」。排程 13:00 跑完才會到昨天。</span>`;
+ $('#covTable').innerHTML='<table><thead><tr><th>星</th><th>代號</th><th>名稱</th><th>類別</th><th>最早</th><th>最新</th><th class="num">天數</th><th>缺漏</th><th class="num">檔數</th><th class="num">大小</th><th>最後錯誤</th></tr></thead><tbody>'+j.coverage.map(c=>`<tr><td>${'★'.repeat(c.star||0)}</td><td><a href="data.html?rid=${c.rid}">${c.rid}</a></td><td>${esc(c.name)}</td><td class="muted">${esc(c.cls)}</td><td>${c.min_day||'—'}</td><td class="${c.max_day&&c.max_day<yday&&c.star>=3?'up':''}">${c.max_day||'—'}</td><td class="num">${fmt(c.days)}</td><td><div class="chips">${(c.missing||[]).slice(0,12).map(m=>`<span>${iso(m).slice(5)}</span>`).join('')}${(c.missing||[]).length>12?`<span>…共 ${c.missing.length}</span>`:''}</div></td><td class="num">${fmt(c.files)}</td><td class="num">${fmt((c.bytes||0)/1048576,1)} MB</td><td class="small up">${esc((c.last_err||'').slice(0,80))}</td></tr>`).join('')+'</tbody></table>';
+ $('#logTable').innerHTML='<table><thead><tr><th>時間</th><th>報表</th><th>鍵</th><th>狀態</th><th class="num">列數</th><th class="num">秒</th></tr></thead><tbody>'+j.log.map(l=>`<tr><td>${esc((l.at||'').slice(0,19).replace('T',' '))}</td><td>${l.rid}</td><td>${esc(l.key)}</td><td class="${l.status==='ok'?'':'up'}">${esc(l.status)}</td><td class="num">${fmt(l.rows)}</td><td class="num">${fmt(l.secs,1)}</td></tr>`).join('')+'</tbody></table>'}catch(e){b.className='banner warn';b.textContent=e.message}})();
+</script></body></html>

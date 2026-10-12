@@ -1,0 +1,44 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>減開建議清單｜運務資料中樞</title><link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
+<body><main>
+<h1 class="pg">減開建議清單</h1><p class="sub">選目標日 → 用近 4 週同星期預測件數 → 列出該星期「常態低載」的正班次 → 勾選登記。清單是候選與證據，是否減開由運指依時效與客戶約定判斷。</p>
+<div class="card"><div class="bar">
+ <label>目標日 <input id="cutDay" type="date"></label>
+ <label>門檻 <select id="cutThr"><option value="55">≤55%</option><option value="50">≤50%</option></select></label>
+ <label>視窗 <select id="cutWin"><option value="4">近 4 週同星期</option><option value="8">近 8 週同星期</option><option value="all">全期同星期</option></select></label>
+ <label>至少 <input id="cutMin" type="number" value="3" min="1" max="30" style="width:60px"> 次</label>
+ <label>方向 <select id="cutDir"><option value="">全部</option><option>南向</option><option>北向</option><option>同區</option></select></label>
+ <label>起站 <input id="cutSt" type="text" placeholder="例 1235" style="width:90px"></label>
+ <label><input id="cutNoOt" type="checkbox" checked> 排除加班比 &gt;20%</label>
+ <label>單價 <input id="cutPrice" type="number" step="0.1" style="width:64px"> 元/km</label>
+ <input id="cutQ" type="search" placeholder="篩站名/班次"><button id="cutRun" class="pri">產生清單</button></div>
+ <div class="insight" id="cutFc"></div></div>
+<div class="tiles" id="cutTiles" style="margin:10px 0"></div>
+<div class="bar"><button id="cutAll">全選</button><button id="cutNone">全不選</button><button id="cutXls">⬇ Excel</button><input id="cutNote" type="text" placeholder="備註（給運指的說明）" style="flex:1;min-width:200px"><button id="cutSave" class="pri">登記採用（存入中樞）</button><span id="cutSaved" class="note"></span></div>
+<div class="scroll" id="cutTable" style="max-height:62vh"></div>
+<p class="note">規則：該班次在「視窗」內的同星期出現 ≥ 次數門檻，且發送積載率 ≤ 門檻的次數 ≥ 次數門檻，列為常態低載；預測件數＝近 4 週同星期件數平均；可省元/件＝里程 × 單價 ÷ 預測件數。里程為 113 回填中位數，「—」表示尚無里程資料。</p>
+</main>
+<script>
+let TRIP_DOW={},CUT_ROWS=[];
+const CUT_COLS=[['code','班次'],['name','名稱'],['route','起站→迄站'],['dir','方向'],['km','里程'],['recent','近期同星期積載率'],['low','低載/出現'],['avg','平均積載'],['allshare','全期低載比'],['save_km','可省 km/日'],['save_nt','可省 元/日'],['save_pp','可省 元/件']];
+(async()=>{if(!shell('cut.html'))return;await loadRows();$('#cutPrice').value=PRICE();$('#cutDay').value=qs('d')||lISO(new Date(Date.now()+864e5));
+ $('#cutRun').onclick=cutRun;$('#cutAll').onclick=()=>{$$('#cutTable input[type=checkbox]').forEach(c=>c.checked=true);cutSum()};$('#cutNone').onclick=()=>{$$('#cutTable input[type=checkbox]').forEach(c=>c.checked=false);cutSum()};
+ $('#cutXls').onclick=()=>exportXlsx(CUT_COLS.map(c=>[c[0],c[1]]),CUT_ROWS,'減開建議_'+$('#cutDay').value);$('#cutSave').onclick=cutSave;$('#cutQ').oninput=()=>cutRender();$('#cutPrice').onchange=()=>{try{localStorage.setItem('nx_price',$('#cutPrice').value)}catch(e){}cutRun()};
+ try{const j=await api({action:'meta',k:'trip_dow'});TRIP_DOW=j.v||{}}catch(e){alert('班次統計載入失敗：'+e.message)}cutRun()})();
+function forecastFor(dayIso){const w=DOWS[(new Date(dayIso).getDay()+6)%7];const list=ROWS.filter(r=>r.dow===w&&r.pieces&&r.day<ymd(dayIso)).slice(-4);const v=list.map(r=>r.pieces).sort((a,b)=>a-b);const med=v.length?(v.length%2?v[(v.length-1)/2]:(v[v.length/2-1]+v[v.length/2])/2):null;return {w,pieces:med,list}}
+async function cutRun(){const dayIso=$('#cutDay').value;history.replaceState(null,'','cut.html?d='+dayIso);const fc=forecastFor(dayIso);const thr=$('#cutThr').value,win=$('#cutWin').value,min=+$('#cutMin').value,dir=$('#cutDir').value,st=$('#cutSt').value.trim(),noOt=$('#cutNoOt').checked,price=+$('#cutPrice').value;
+ $('#cutFc').innerHTML=`${dayIso}（${fc.w}）預測件數 <b>${fmt(fc.pieces)}</b>（近 4 週同星期中位數：${fc.list.map(r=>iso(r.day).slice(5)+' '+fmt(r.pieces)).join('、')||'無資料'}）`;
+ const rows=[];for(const [code,t] of Object.entries(TRIP_DOW)){const d=t.dow?.[fc.w];if(!d)continue;if(noOt&&t.ot_share>0.2)continue;if(dir&&t.dir!==dir)continue;if(st&&!t.from.startsWith(st))continue;
+  const n=win==='all'?d.n:d['n'+win];const low=win==='all'?d['low'+thr]:d['low'+thr+'_'+win];const avg=win==='all'?d.avg:d['avg'+win];if(n==null||n<min||low<min)continue;const km=t.km||0;
+  rows.push({code,name:t.name,from:t.from,to:t.to,route:`${t.from}→${t.to}`,dir:t.dir,km:t.km,recent:(d.recent||[]).map(x=>Math.round(x[1])).join(' / '),low:`${low}/${n}`,lowShare:low/n,avg,allshare:Math.round(d.low55/d.n*100)+'%',save_km:km,save_nt:Math.round(km*price),save_pp:fc.pieces?+(km*price/fc.pieces).toFixed(3):null})}
+ rows.sort((a,b)=>b.lowShare-a.lowShare||(b.km||0)-(a.km||0));CUT_ROWS=rows;
+ let adopted=new Set();try{const j=await api({action:'decide_list',from:dayIso,to:dayIso});if(j.rows.length){adopted=new Set(j.rows[0].adopted||[]);$('#cutNote').value=j.rows[0].note||'';$('#cutSaved').textContent=`已有登記（${new Date(j.rows[0].updated_at).toLocaleString('zh-TW',{hour12:false}).slice(0,16)}，採用 ${adopted.size} 班）`}else{$('#cutSaved').textContent='';$('#cutNote').value=''}}catch(e){}
+ cutRender(adopted)}
+function cutRender(adopted){const q=$('#cutQ').value.trim().toLowerCase();const prev=adopted||new Set($$('#cutTable input[type=checkbox]:checked').map(c=>c.value));const rows=CUT_ROWS.filter(r=>!q||(r.code+r.name+r.route).toLowerCase().includes(q));
+ $('#cutTable').innerHTML=rows.length?'<table><thead><tr><th>採用</th>'+CUT_COLS.map(c=>`<th class="${['km','avg','save_km','save_nt','save_pp'].includes(c[0])?'num':''}">${c[1]}</th>`).join('')+'</tr></thead><tbody>'+rows.map(r=>`<tr><td><input type="checkbox" value="${r.code}" ${prev.has(r.code)?'checked':''}></td>`+CUT_COLS.map(c=>{const v=r[c[0]];if(c[0]==='code')return `<td>${tripLink(r.code)}</td>`;if(c[0]==='route')return `<td>${stLink(r.from)}→${stLink(r.to)}</td>`;if(['km','save_km','save_nt'].includes(c[0]))return `<td class="num">${fmt(v)}</td>`;if(c[0]==='avg')return `<td class="num">${fmt(v,1)}</td>`;if(c[0]==='save_pp')return `<td class="num">${v==null?'—':v.toFixed(3)}</td>`;return `<td>${esc(v)}</td>`}).join('')+'</tr>').join('')+'</tbody></table>':'<p class="note">沒有符合規則的班次</p>';
+ $$('#cutTable input[type=checkbox]').forEach(c=>c.onchange=cutSum);cutSum()}
+function cutSum(){const fc=forecastFor($('#cutDay').value);const price=+$('#cutPrice').value;const all=CUT_ROWS;const sel=new Set($$('#cutTable input[type=checkbox]:checked').map(c=>c.value));const pick=all.filter(r=>sel.has(r.code));const km=l=>l.reduce((a,b)=>a+(b.km||0),0);
+ $('#cutTiles').innerHTML=[['候選班次',all.length,0],['候選合計里程',km(all),0],['候選可省元/日',km(all)*price,0],['採用班次',pick.length,0],['採用合計里程',km(pick),0],['採用可省元/日',km(pick)*price,0],['採用可省元/件',fc.pieces?km(pick)*price/fc.pieces:null,3],['無里程資料的候選',all.filter(r=>!r.km).length,0]].map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v">${fmt(v,d)}</div></div>`).join('')}
+async function cutSave(){const dayIso=$('#cutDay').value;const fc=forecastFor(dayIso);const sel=$$('#cutTable input[type=checkbox]:checked').map(c=>c.value);$('#cutSave').disabled=true;try{let merges=[];try{const j=await api({action:'decide_list',from:dayIso,to:dayIso});if(j.rows.length)merges=j.rows[0].merges||[]}catch(e){}
+ await api({action:'decide_save',day:dayIso,forecast:{pieces:fc.pieces,dow:fc.w,basis:fc.list.map(r=>[r.day,r.pieces])},params:{thr:$('#cutThr').value,win:$('#cutWin').value,min:+$('#cutMin').value,dir:$('#cutDir').value,st:$('#cutSt').value,noOt:$('#cutNoOt').checked,price:+$('#cutPrice').value},suggested:CUT_ROWS.map(r=>({code:r.code,name:r.name,route:r.route,dir:r.dir,km:r.km,low:r.low,avg:r.avg})),adopted:sel,merges,note:$('#cutNote').value});$('#cutSaved').textContent=`已登記 ${new Date().toLocaleString('zh-TW',{hour12:false})}：建議 ${CUT_ROWS.length} 班、採用 ${sel.length} 班`}catch(e){alert(e.message)}finally{$('#cutSave').disabled=false}}
+</script></body></html>
