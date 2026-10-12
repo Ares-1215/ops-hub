@@ -13,6 +13,7 @@
 <div class="grid3" id="decide"><div class="card"><span class="spin"></span></div></div>
 <h2>各頁</h2>
 <div class="links">
+  <a href="cost.html"><b>件成本</b><span>每日推估件成本（實跑／表定兩口徑）、拆解、與 Excel 實際值回測</span></a>
   <a href="day.html"><b>當日快照</b><span>任一天的 27 個指標、差異歸因、清單（空櫃／低載／加班／單位）</span></a>
   <a href="trend.html"><b>趨勢</b><span>一次看一個指標，附同星期基準帶與結論句；可並排比較</span></a>
   <a href="cut.html"><b>減開建議清單</b><span>明天該減哪些常態低載正班次，附可省里程與元</span></a>
@@ -30,7 +31,7 @@
 (async()=>{if(!shell('index.html'))return;try{await loadRows()}catch(e){$('#brief').innerHTML='<li>'+esc(e.message)+'</li>';return}
  const latest=ROWS[ROWS.length-1];const last=ROWS.slice().reverse().find(r=>'一二三四五'.includes(r.dow)&&!r.holiday)||latest;const day=last.day;$('#asof').textContent='資料到 '+iso(latest.day)+'（'+latest.dow+'）';$('#bsub').textContent='最近一個平日 '+iso(day)+'（'+last.dow+'）；對照基準：前 4 週同星期平均'+(latest.day!==day?'；週末／假日資料請看當日快照':'');
  const b=briefing(day);$('#brief').innerHTML=b.map(s=>`<li>${s}</li>`).join('')+`<li class="muted small">看完整快照 → ${dayLink(day,'當日快照 '+iso(day))}</li>`;
- const base=baseline(day);$('#kpi').innerHTML=['est_cost','km_per_kpiece','empty_rate','ot_total','low55_n','idle_trips','unload_box_min','ontime117'].map(k=>tile(k,last[k],avgOf(base,k),k==='est_cost',k==='est_cost'?`單價 ${fmt(last.price,2)}（${last.price_src}）`:'')).join('');
+ const base=baseline(day);$('#kpi').innerHTML=['cost_pp','est_cost','km_per_kpiece','empty_rate','ot_total','low55_n','idle_trips','unload_box_min','ontime117'].map(k=>tile(k,last[k],avgOf(base,k),k==='cost_pp'||k==='est_cost',k==='est_cost'?`單價 ${fmt(last.price,2)}（${last.price_src}）`:(k==='cost_pp'?`運輸 ${fmt(last.est_cost,2)}＋月率 ${fmt(last.nontr,2)}（${last.nontr_src}）<a href="cost.html">拆解</a>`:''))).join('');
  const list=withBaseline(ROWS.slice(-56),'km_per_kpiece');chart('#main',list,[{k:'km_per_kpiece',n:'每千件里程',c:'var(--acc)',band:['km_per_kpiece_bmin','km_per_kpiece_bmax']},{k:'km_per_kpiece_bavg',n:'同星期基準平均',c:'var(--grey)',dash:true,nodots:true}],{zero:false});$('#mainIns').innerHTML=insight('km_per_kpiece',ROWS.slice(-56));
  /* 二、今天要決定什麼 */
  const tm=lISO(new Date(Date.now()+864e5));const w=DOWS[(new Date(tm).getDay()+6)%7];let cutN=null,cutKm=0;
