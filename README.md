@@ -7,6 +7,7 @@ https://ares-1215.github.io/ops-hub/ ・ 新竹物流 運務處資料中樞：�
   - 成效回看：`review.html` 決策回看、`trend.html` 趨勢、`day.html` 當日快照、`station.html?code=` 站所、`network.html` 路線網路・車型、`trip.html?code=` 班次
   - 資料與口徑：`cost.html` 件成本、`price.html` 單價校正、`moves.html` 移櫃與棧板、`data.html?rid=` 資料倉、`status.html`、`docs.html`
   共用 `assets/app.js`／`app.css`；圖表用站內 `assets/vendor/echarts.min.js`（5.6.0，`chart()` 介面不變、載入失敗退回手繪 SVG）；Excel 匯出時才從 cdnjs 載入 SheetJS。舊單頁版在 `_old/`。
+- 移櫃（2026-10-16）：`nls-explorer/build_moves.py` 讀 139（月區間檔＋每日檔，139 已加進 DAILY_JOBS）→ 逐櫃燈號（113 光罩＋79 拆封當在場證據）→ daily_kpi 加 `moves_*`、detail kind `moves`、meta `moves_agg`；`moves.html` 顯示趨勢、站所／車頭／人員排名、逐筆查核；彰化秀水逐櫃證據仍看 container-audit。
 - 本機預覽（不用帳密、不碰 Supabase）：`python tools/mock_api.py 8787` 同時服務靜態檔與假 API（讀 nls-explorer/data），瀏覽器 console 設 `localStorage.nx_api='http://localhost:8787/api'`、`nx_auth={"token":"mock"}` 後重新整理。
 - 後端：Supabase（表 `nx_daily / nx_detail / nx_coverage / nx_pull_log / nx_meta / nx_users`，Storage `nx-raw / nx-docs`）＋ Edge Function `nxhub`（登入 token 驗證；寫入走 ingest token）。
 - 資料來源：HCT nls 報表平台（內網，唯讀），抓取引擎在 `C:\Users\26516\notebookLM\nls-explorer`。

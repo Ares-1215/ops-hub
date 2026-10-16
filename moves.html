@@ -1,26 +1,62 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>移櫃與棧板｜運務資料中樞</title><link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
 <body><main>
-<h1 class="pg">移櫃與棧板（非運輸費用）</h1>
-<p class="sub">件成本裡運輸占 79%，剩下兩成是棧板 11.7%、其他 9.2%（移櫃是其中最大一筆）。這兩筆不靠減開，靠現場：棧板回收與租用、移櫃次數。這頁先把每個月每件多少錢攤開來，移櫃筆數（139 報表）接上後會加逐日。</p>
+<h1 class="pg">移櫃與棧板（非運輸費用）<span class="small muted" id="mvAsof"></span></h1>
+<p class="sub">件成本裡運輸占 79%，剩下兩成是棧板 11.7%、其他 9.2%（移櫃是其中最大一筆）。這兩筆不靠減開，靠現場：移櫃次數、棧板回收與租用。移櫃用 139 荷米斯 APP 的確認紀錄，逐櫃用 113 光罩與 79 拆封當在場證據打燈號（全站都做，寬限 60 分、回溯 14 天）。</p>
 <div class="tiles" id="mvTiles" style="margin:10px 0"></div>
 <div class="grid2">
- <div class="card"><h3>每件非運輸費用：月趨勢（元/件）</h3><div id="mvChart"></div><div class="insight" id="mvIns"></div></div>
- <div class="card"><h3>這些錢怎麼來的</h3><ul class="brief" style="font-size:13px"><li><b>棧板</b>：月總額按平日件數分攤，週末不攤；1～9 月 0.92～1.25 元/件，是第二大科目。</li><li><b>移櫃</b>：月總額攤全月每一天；0.58～0.81 元/件。每一次移櫃都是人工＋機具，筆數可以從 139 移櫃確認查到。</li><li><b>租櫃</b>：1～5 月有、6 月起 0，代表租櫃合約已結束或改列他科。</li><li><b>加達／淡水／當配／秀籠</b>：特定路線或客戶的加價，金額小但 4 月加達 6.8 萬/日 曾讓件成本多 0.1。</li><li>以上都是月額分攤，日件成本不能跨月比。</li></ul></div>
+ <div class="card"><h3>每日移櫃櫃數與每萬件移櫃櫃數</h3><div class="sub">櫃數＝各次確認回報的櫃號加總；每萬件＝櫃數 ÷ 606 件數 × 10,000，排除件數對移櫃的影響</div><div id="mvTrend"></div><div class="insight" id="mvTrendIns"></div></div>
+ <div class="card"><h3>燈號比例（每日）</h3><div class="sub">綠＝確認當下櫃子在該站（光罩進站～下一次離站之間）；黃＝到過該站但時間對不上，待複判；紅＝回溯期內查無該櫃在該站的紀錄</div><div id="mvLight"></div><div class="insight" id="mvLightIns"></div></div>
 </div>
-<h2>每月明細（元/件）</h2>
-<div class="card"><div class="scroll" id="mvTable" style="max-height:50vh"></div><p class="note">來源：件成本分析.xlsx（ops-hub\tools\cost）；每件＝該科目月總額 ÷ 月件數。9 月只到 13 日。</p></div>
-<h2>移櫃筆數（139 移櫃確認查詢）</h2>
-<div class="card" id="mvMoves"><p class="note">待接：每日 139 移櫃確認筆數（依站所、車頭），接上後這裡會有逐日趨勢與站所排名。</p></div>
+<h2>站所排名 <span class="small">近 28 天；點站名看該站</span></h2>
+<div class="card"><div class="bar"><label>排序 <select id="mvSort"><option value="boxes">櫃數</option><option value="none">查無櫃數</option><option value="none_rate">查無比例</option><option value="n">確認次數</option></select></label><input id="mvQ" type="search" placeholder="篩站名"><button id="mvXls">⬇ Excel</button></div><div class="scroll" id="mvSt" style="max-height:50vh"></div></div>
+<div class="grid2">
+ <div class="card"><h3>車頭排名（近 28 天，前 40）</h3><div class="sub">哪些車頭一直在移櫃；查無比例高的先看</div><div class="scroll" id="mvTruck" style="max-height:360px"></div></div>
+ <div class="card"><h3>確認人員排名（近 28 天，前 40）</h3><div class="sub">同一人常按「查無」的櫃號，可能是亂報或沒掃到</div><div class="scroll" id="mvPerson" style="max-height:360px"></div></div>
+</div>
+<h2>逐筆查核 <span class="small" id="mvDayLbl"></span></h2>
+<div class="card"><div class="bar"><label>日期 <select id="mvDay"></select></label><label>只看 <select id="mvOnly"><option value="">全部</option><option value="none">有查無</option><option value="review">有待複判</option></select></label><input id="mvQ2" type="search" placeholder="篩站名／車頭／人員"><span class="note">彰化／秀水要看逐櫃證據（在場時段、光罩進出）→ <a href="https://ares-1215.github.io/container-audit/" target="_blank">移櫃確認稽核</a></span></div><div class="scroll" id="mvItems" style="max-height:60vh"></div></div>
+<h2>每件非運輸費用（件成本分析表）</h2>
+<div class="grid2">
+ <div class="card"><h3>月趨勢（元/件）</h3><div id="mvChart"></div><div class="insight" id="mvIns"></div></div>
+ <div class="card"><h3>這些錢怎麼來的</h3><ul class="brief" style="font-size:13px"><li><b>棧板</b>：月總額按平日件數分攤，週末不攤；1～9 月 0.92～1.25 元/件，是第二大科目。</li><li><b>移櫃</b>：月總額攤全月每一天；0.58～0.81 元/件。每一次移櫃都是人工＋機具。</li><li><b>租櫃</b>：1～5 月有、6 月起 0。</li><li><b>加達／淡水／當配／秀籠</b>：特定路線或客戶的加價，金額小但 4 月加達 6.8 萬/日 曾讓件成本多 0.1。</li><li>以上都是月額分攤，日件成本不能跨月比。</li></ul></div>
+</div>
+<div class="card"><div class="scroll" id="mvTable" style="max-height:40vh"></div><p class="note">來源：件成本分析.xlsx（ops-hub\tools\cost）；每件＝該科目月總額 ÷ 月件數。9 月只到 13 日。</p></div>
 </main>
 <script>
-(async()=>{if(!shell('moves.html'))return;await loadRows();const ms=CALIB?.excel?.months||{};const keys=Object.keys(ms).filter(k=>ms[k].rates).sort();if(!keys.length){$('#mvTable').innerHTML='<p class="note">尚無 Excel 月率資料（單價校正頁匯入件成本分析.xlsx）</p>';return}
- const sub=k=>ms[k].rates.sub||{};const rows=keys.map(k=>{const r=ms[k].rates;const s=sub(k);return {x:k.slice(0,4)+'-'+k.slice(4),ym:k,pcs:r.pcs,pb:r.pb_rate,rent:r.rent_rate,oth:r.oth_rate,mv:s['移櫃'],jd:s['加達'],ds:s['淡水'],dp:s['當配'],xl:s['秀籠'],nontr:r.nontr_rate,pp:r.pp,days:r.days}});
- const last=rows[rows.length-1];const full=rows.filter(r=>r.days>=20);const avg=k=>avgOf(full,k);
- $('#mvTiles').innerHTML=[['棧板 元/件（最新月）',last.pb,3],['移櫃 元/件',last.mv,3],['其他合計 元/件',last.oth,3],['非運輸合計 元/件',last.nontr,3],['棧板 1～9 月平均',avg('pb'),3],['移櫃 1～9 月平均',avg('mv'),3]].map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v">${fmt(v,d)}</div></div>`).join('');
- chart('#mvChart',rows,[{k:'pb',n:'棧板',c:'var(--acc)'},{k:'mv',n:'移櫃',c:'var(--orange)'},{k:'rent',n:'租櫃',c:'var(--grey)'},{k:'oth',n:'其他合計',c:'var(--red)',dash:true}],{h:260});
+let AGG=null,ITEMS={};
+(async()=>{if(!shell('moves.html'))return;await loadRows();
+ try{const j=await api({action:'meta',k:'moves_agg'});AGG=j.v}catch(e){}
+ const mv=ROWS.filter(r=>r.moves_boxes!=null);const last=mv[mv.length-1];
+ if(!last){$('#mvTiles').innerHTML='<p class="note">尚無 139 移櫃資料（每日同步後出現）</p>'}else{
+  $('#mvAsof').textContent='移櫃資料到 '+iso(last.day);const base=baseline(last.day);const b=k=>avgOf(base,k);const per=r=>r.pieces?r.moves_boxes/r.pieces*1e4:null;const lr=r=>r.moves_boxes?(r.moves_none/r.moves_boxes*100):null;
+  const L=AGG?.last28;const T=L?{boxes:L.by_st.reduce((a,x)=>a+x.boxes,0),ok:L.by_st.reduce((a,x)=>a+x.ok,0),rv:L.by_st.reduce((a,x)=>a+x.review,0),nn:L.by_st.reduce((a,x)=>a+x.none,0),n:L.by_st.reduce((a,x)=>a+x.n,0)}:null;
+  $('#mvTiles').innerHTML=[['確認次數（'+iso(last.day).slice(5)+'）',last.moves_n,0,null],['櫃數',last.moves_boxes,0,null],['每萬件櫃數',per(last),1,avgOf(base.map(r=>({v:per(r)})),'v')],['查無比例 %',lr(last),1,avgOf(base.map(r=>({v:lr(r)})),'v')],['近 28 天 櫃數／日',T?T.boxes/L.days:null,0,null],['近 28 天 正常／待複判／查無',T?`${Math.round(T.ok/T.boxes*100)}／${Math.round(T.rv/T.boxes*100)}／${Math.round(T.nn/T.boxes*100)}%`:null,0,null]].map(([k,v,d,bb])=>`<div class="tile"><div class="k">${k}</div><div class="v">${typeof v==='string'?v:fmt(v,d)}</div><div class="d">${bb!=null&&typeof v==='number'?`vs 同星期 ${fmt(bb,d)}`:''}</div></div>`).join('');
+  const list=mv.slice(-84).map(r=>({...r,per10k:per(r),none_rate:lr(r),ok_rate:r.moves_boxes?r.moves_ok/r.moves_boxes*100:null,rv_rate:r.moves_boxes?r.moves_review/r.moves_boxes*100:null}));
+  chart('#mvTrend',list,[{k:'moves_boxes',n:'櫃數',c:'var(--acc)',type:'bar'},{k:'per10k',n:'每萬件櫃數',c:'var(--orange)',axis:'r',nodots:true}],{h:250});
+  chart('#mvLight',list,[{k:'ok_rate',n:'正常 %',c:'var(--good)',nodots:true},{k:'rv_rate',n:'待複判 %',c:'var(--orange)',nodots:true},{k:'none_rate',n:'查無 %',c:'var(--red)',nodots:true}],{h:250});
+  $('#mvTrendIns').innerHTML=insight('moves_boxes',mv.slice(-56))+(KPI.moves_boxes?'':'');
+  const wk=mv.slice(-28),pv=mv.slice(-56,-28);const nr=l=>{const b=l.reduce((a,r)=>a+(r.moves_boxes||0),0);return b?l.reduce((a,r)=>a+(r.moves_none||0),0)/b*100:null};
+  $('#mvLightIns').innerHTML=`近 28 天查無比例 <b>${fmt(nr(wk),1)}%</b>${pv.length?`，前 28 天 ${fmt(nr(pv),1)}%`:''}；查無的櫃號多半是「確認站和櫃子實際所在站對不上」，先看站所排名裡查無比例高的站。`}
+ /* 排名 */
+ if(AGG){const L=AGG.last28;const rk=(l,key)=>l.map(x=>({...x,none_rate:x.boxes?x.none/x.boxes*100:0,per_day:x.boxes/L.days}));window.MV_ST=rk(L.by_st,'st');
+  const stTable=()=>{const sort=$('#mvSort').value,q=$('#mvQ').value.trim();const rows=MV_ST.filter(x=>!q||x.k.includes(q)).sort((a,b)=>(b[sort]||0)-(a[sort]||0));$('#mvSt').innerHTML='<table><thead><tr><th>確認站</th><th class="num">確認次數</th><th class="num">櫃數</th><th class="num">櫃數／日</th><th class="num">正常</th><th class="num">待複判</th><th class="num">查無</th><th class="num">查無比例</th></tr></thead><tbody>'+rows.map(x=>`<tr><td>${stLink(x.k)}</td><td class="num">${fmt(x.n)}</td><td class="num">${fmt(x.boxes)}</td><td class="num">${fmt(x.per_day,1)}</td><td class="num down">${fmt(x.ok)}</td><td class="num">${fmt(x.review)}</td><td class="num up">${fmt(x.none)}</td><td class="num ${x.none_rate>=15?'up':''}">${fmt(x.none_rate,1)}%</td></tr>`).join('')+'</tbody></table>'};
+  $('#mvSort').onchange=stTable;$('#mvQ').oninput=stTable;$('#mvXls').onclick=()=>exportXlsx([['k','確認站'],['n','確認次數'],['boxes','櫃數'],['ok','正常'],['review','待複判'],['none','查無'],['none_rate','查無比例%']],MV_ST,'移櫃站所排名');stTable();
+  const small=(l,lbl)=>'<table><thead><tr><th>'+lbl+'</th><th class="num">次</th><th class="num">櫃</th><th class="num">查無</th><th class="num">%</th></tr></thead><tbody>'+rk(l).slice(0,40).map(x=>`<tr><td>${esc(x.k)}</td><td class="num">${x.n}</td><td class="num">${x.boxes}</td><td class="num up">${x.none}</td><td class="num ${x.none_rate>=15?'up':''}">${fmt(x.none_rate,0)}</td></tr>`).join('')+'</tbody></table>';
+  $('#mvTruck').innerHTML=small(L.by_truck,'車頭');$('#mvPerson').innerHTML=small(L.by_person,'確認人員')}
+ /* 逐筆 */
+ const sel=$('#mvDay');mv.slice().reverse().forEach(r=>{const o=document.createElement('option');o.value=r.day;o.textContent=iso(r.day)+'（'+r.dow+'）';sel.appendChild(o)});if(last)sel.value=qs('d')&&BY[qs('d')]?qs('d'):last.day;
+ sel.onchange=items;$('#mvOnly').onchange=items;$('#mvQ2').oninput=items;if(last)items();
+ /* 月率 */
+ const ms=CALIB?.excel?.months||{};const keys=Object.keys(ms).filter(k=>ms[k].rates).sort();if(!keys.length){$('#mvTable').innerHTML='<p class="note">尚無 Excel 月率資料</p>';return}
+ const rows=keys.map(k=>{const r=ms[k].rates;const s=r.sub||{};return {x:k.slice(0,4)+'-'+k.slice(4),pcs:r.pcs,pb:r.pb_rate,rent:r.rent_rate,oth:r.oth_rate,mv:s['移櫃'],jd:s['加達'],ds:s['淡水'],dp:s['當配'],xl:s['秀籠'],nontr:r.nontr_rate,pp:r.pp,days:r.days}});const full=rows.filter(r=>r.days>=20);
+ chart('#mvChart',rows,[{k:'pb',n:'棧板',c:'var(--acc)'},{k:'mv',n:'移櫃',c:'var(--orange)'},{k:'rent',n:'租櫃',c:'var(--grey)'},{k:'oth',n:'其他合計',c:'var(--red)',dash:true}],{h:240});
  const mx=full.reduce((a,b)=>(b.pb||0)>(a.pb||0)?b:a,full[0]),mn=full.reduce((a,b)=>(b.pb||0)<(a.pb||0)?b:a,full[0]);
- $('#mvIns').innerHTML=`棧板最高 <b>${mx.x} ${fmt(mx.pb,3)}</b>、最低 <b>${mn.x} ${fmt(mn.pb,3)}</b>，差 ${fmt((mx.pb||0)-(mn.pb||0),3)} 元/件，以月件數 1,400 萬算約 <b>${fmt(((mx.pb||0)-(mn.pb||0))*14e6/1e4)} 萬/月</b>；移櫃每件 ${fmt(mn.mv,3)}～${fmt(mx.mv,3)}，筆數接上後才知道是件數少還是移櫃多。`;
+ $('#mvIns').innerHTML=`棧板最高 <b>${mx.x} ${fmt(mx.pb,3)}</b>、最低 <b>${mn.x} ${fmt(mn.pb,3)}</b>，差 ${fmt((mx.pb||0)-(mn.pb||0),3)} 元/件，以月件數 1,400 萬算約 <b>${fmt(((mx.pb||0)-(mn.pb||0))*14e6/1e4)} 萬/月</b>；移櫃每件 ${fmt(Math.min(...full.map(r=>r.mv||9)),3)}～${fmt(Math.max(...full.map(r=>r.mv||0)),3)}。`;
  $('#mvTable').innerHTML='<table><thead><tr><th>月份</th><th class="num">件數</th><th class="num">棧板</th><th class="num">租櫃</th><th class="num">移櫃</th><th class="num">加達</th><th class="num">淡水</th><th class="num">當配</th><th class="num">秀籠</th><th class="num">其他合計</th><th class="num">非運輸合計</th><th class="num">件成本</th></tr></thead><tbody>'+rows.map(r=>`<tr><td>${r.x}${r.days<20?'*':''}</td><td class="num">${fmt(r.pcs)}</td><td class="num">${fmt(r.pb,3)}</td><td class="num">${fmt(r.rent,3)}</td><td class="num">${fmt(r.mv,3)}</td><td class="num">${fmt(r.jd,3)}</td><td class="num">${fmt(r.ds,3)}</td><td class="num">${fmt(r.dp,3)}</td><td class="num">${fmt(r.xl,3)}</td><td class="num">${fmt(r.oth,3)}</td><td class="num">${fmt(r.nontr,3)}</td><td class="num">${fmt(r.pp,3)}</td></tr>`).join('')+'</tbody></table>';
 })();
+async function items(){const day=$('#mvDay').value;$('#mvDayLbl').textContent=iso(day);const el=$('#mvItems');el.innerHTML='<p class="note"><span class="spin"></span> 載入…</p>';
+ try{if(!ITEMS[day]){const j=await api({action:'detail',day:iso(day),kinds:['moves']});ITEMS[day]=j.rows.find(r=>r.kind==='moves')?.payload||{items:[]}}
+  const only=$('#mvOnly').value,q=$('#mvQ2').value.trim();const rows=(ITEMS[day].items||[]).filter(x=>(!only||x[only]>0)&&(!q||(x.cf_st+x.mv_st+x.truck+x.person+x.driver).includes(q)));
+  el.innerHTML=rows.length?'<table><thead><tr><th>確認時間</th><th>確認站</th><th>移櫃站</th><th>車頭</th><th>司機</th><th>確認人員</th><th class="num">櫃數</th><th class="num">正常</th><th class="num">待複判</th><th class="num">查無</th><th>查無櫃號</th></tr></thead><tbody>'+rows.slice(0,600).map(x=>`<tr><td>${esc(x.time)}</td><td>${stLink(x.cf_st)}</td><td>${x.mv_st===x.cf_st?'同':stLink(x.mv_st)}</td><td>${esc(x.truck)}</td><td>${esc(x.driver)}</td><td>${esc(x.person)}</td><td class="num">${x.boxes}</td><td class="num down">${x.ok}</td><td class="num">${x.review}</td><td class="num ${x.none?'up':''}">${x.none}</td><td class="muted">${(x.none_ids||[]).join(' ')}</td></tr>`).join('')+'</tbody></table>':'<p class="note">無資料</p>'}catch(e){el.innerHTML='<p class="note">'+esc(e.message)+'</p>'}}
 </script></body></html>

@@ -37,6 +37,7 @@ DAILY_JOBS = {   # rid -> params(day)
     "77": lambda d: {"P1": d, "P2": "0000", "P3": "0", "P4": "0", "P5": "0"},
     "62": lambda d: {"P1": d, "P6": d, "P2": "0000", "P7": "0000", "P3": "0", "P4": "0", "P5": "0"},
     "117": lambda d: {"P1": d, "P2": d, "P3": "0000"},
+    "139": lambda d: {"P1": d, "P2": d, "P3": "0000"},
 }
 GRAIN_DAY = {"41", "83", "2", "3", "205", "206", "79", "80", "606", "77", "62", "150", "155", "210", "54", "26", "92", "139", "117", "35", "645"}
 
@@ -107,6 +108,8 @@ def build():
     log("build_dataset: " + (r.stdout.strip().splitlines() or ["?"])[0])
     if r.returncode:
         log("build_dataset ERR: " + r.stderr[-500:])
+    rm = subprocess.run([PY, "build_moves.py"], cwd=ENGINE, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    log("build_moves: " + (rm.stdout.strip().splitlines() or ["?"])[-1] + ("" if not rm.returncode else " ERR " + rm.stderr[-300:]))
     r2 = subprocess.run([PY, "build_tools.py"], cwd=ENGINE, capture_output=True, text=True, encoding="utf-8", errors="replace")
     log("build_tools: " + (r2.stdout.strip().splitlines() or ["?"])[-1] + ("" if not r2.returncode else " ERR " + r2.stderr[-300:]))
     r3 = subprocess.run([PY, "build_stations.py"], cwd=ENGINE, capture_output=True, text=True, encoding="utf-8", errors="replace")
@@ -290,7 +293,7 @@ def upload_stations(st):
 
 def upload_meta(cov):
     d = ENGINE / "data"
-    for k, f in (("trip_km", "trip_km.json"), ("idle_trips", "idle_trips.json"), ("pair_low", "pair_low.json"), ("trip_dow", "trip_dow.json"), ("ot_agg", "ot_agg.json"), ("price_calib", "price_calib.json")):
+    for k, f in (("trip_km", "trip_km.json"), ("idle_trips", "idle_trips.json"), ("pair_low", "pair_low.json"), ("trip_dow", "trip_dow.json"), ("ot_agg", "ot_agg.json"), ("price_calib", "price_calib.json"), ("moves_agg", "moves_agg.json")):
         if (d / f).exists():
             edge({"action": "ingest_meta", "k": k, "v": json.loads((d / f).read_text(encoding="utf-8"))})
     if (d / "trip_load.json").exists():
