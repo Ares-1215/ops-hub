@@ -36,7 +36,7 @@ function showLogin(){document.body.innerHTML=`<div id="login"><form class="login
 const AREAS=[
  {id:'decide',name:'今天要決定',hint:'減開・併櫃・加班・空櫃，看完就能登記',pages:[['index.html','決策看板'],['cut.html','減開清單'],['merge.html','併櫃與雙拖'],['ot.html','加班檢核'],['empty.html','空櫃回送・封櫃時段']]},
  {id:'review',name:'成效回看',hint:'決定了之後有沒有變好',pages:[['review.html','決策回看'],['trend.html','趨勢'],['day.html','當日快照'],['station.html','站所'],['network.html','路線網路・車型'],['trip.html','班次']]},
- {id:'data',name:'資料與口徑',hint:'件成本怎麼算、資料從哪來',pages:[['cost.html','件成本'],['price.html','單價校正'],['moves.html','移櫃與棧板'],['data.html','資料倉'],['status.html','更新狀態'],['docs.html','文件']]}];
+ {id:'data',name:'資料與口徑',hint:'件成本怎麼算、資料從哪來',pages:[['cost.html','件成本'],['price.html','單價校正'],['moves.html','移櫃'],['data.html','資料倉'],['status.html','更新狀態'],['docs.html','文件']]}];
 const NAV=AREAS.flatMap(a=>a.pages);
 function shell(active){if(!AUTH?.token){showLogin();return false}
  const page=active||location.pathname.split('/').pop()||'index.html';const area=AREAS.find(a=>a.pages.some(p=>p[0]===page))||AREAS[0];
