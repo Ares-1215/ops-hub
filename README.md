@@ -2,7 +2,12 @@
 
 https://ares-1215.github.io/ops-hub/ ・ 新竹物流 運務處資料中樞：每日運行狀況剖析看板 / 報表資料倉 / 更新狀態 / 文件。
 
-- 前端：多頁靜態站（`index.html` 總覽、`day.html` 當日快照、`trend.html` 趨勢、`cut.html` 減開清單、`merge.html` 併櫃模擬、`ot.html` 加班檢核、`review.html` 決策回看、`station.html?code=` 站所頁、`trip.html?code=` 班次頁、`data.html?rid=` 資料倉、`status.html`、`docs.html`），共用 `assets/app.js`／`app.css`；零依賴，Excel 匯出時才從 cdnjs 載入 SheetJS。舊單頁版在 `_old/`。
+- 前端：多頁靜態站，v3（2026-10-16）整理成三個任務區，外框在 `assets/app.js` 的 `AREAS`：
+  - 今天要決定：`index.html` 決策看板、`cut.html` 減開清單、`merge.html` 併櫃與雙拖、`ot.html` 加班檢核、`empty.html` 空櫃回送・封櫃時段
+  - 成效回看：`review.html` 決策回看、`trend.html` 趨勢、`day.html` 當日快照、`station.html?code=` 站所、`network.html` 路線網路・車型、`trip.html?code=` 班次
+  - 資料與口徑：`cost.html` 件成本、`price.html` 單價校正、`moves.html` 移櫃與棧板、`data.html?rid=` 資料倉、`status.html`、`docs.html`
+  共用 `assets/app.js`／`app.css`；圖表用站內 `assets/vendor/echarts.min.js`（5.6.0，`chart()` 介面不變、載入失敗退回手繪 SVG）；Excel 匯出時才從 cdnjs 載入 SheetJS。舊單頁版在 `_old/`。
+- 本機預覽（不用帳密、不碰 Supabase）：`python tools/mock_api.py 8787` 同時服務靜態檔與假 API（讀 nls-explorer/data），瀏覽器 console 設 `localStorage.nx_api='http://localhost:8787/api'`、`nx_auth={"token":"mock"}` 後重新整理。
 - 後端：Supabase（表 `nx_daily / nx_detail / nx_coverage / nx_pull_log / nx_meta / nx_users`，Storage `nx-raw / nx-docs`）＋ Edge Function `nxhub`（登入 token 驗證；寫入走 ingest token）。
 - 資料來源：HCT nls 報表平台（內網，唯讀），抓取引擎在 `C:\Users\26516\notebookLM\nls-explorer`。
 - 同步：`tools/hub_sync.py`（回補最近 N 天 → 建 KPI → 上傳）；Windows 排程 `OpsHub-Daily` 每天 13:00 跑 `tools/update_daily.ps1`。

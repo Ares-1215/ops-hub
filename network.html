@@ -1,0 +1,47 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>路線網路・車型｜運務資料中樞</title><link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
+<body><main>
+<h1 class="pg">路線網路・車型組合</h1>
+<p class="sub">件數不能強求，班表可以設計。這頁看三件事：貨往哪裡流（區域 OD）、哪些站對一直開低載班次（站對清單）、車型怎麼配（雙拖／全拖／半拖）。</p>
+<div class="tiles" id="nwTiles" style="margin:10px 0"></div>
+<h2>一、區域 OD：每天幾班、平均積載、低載比</h2>
+<div class="card"><div class="bar"><label>顯示 <select id="nwCell"><option value="trips">班／日</option><option value="load">平均積載 %</option><option value="low">低載比 %</option><option value="km">km／日</option></select></label><label>類型 <select id="nwType"><option value="">全部</option><option value="直達">直達</option><option value="轉運">經轉運中心</option><option value="其他">其他</option></select></label><span class="note">列＝起站區域、欄＝迄站區域；顏色越深數字越大。統計期間＝班次統計有資料的日子（4 月起）；只含有發送積載率的班次，空櫃班次在「空櫃回送」頁。</span></div><div class="scroll" id="nwMatrix" style="max-height:360px"></div><div class="insight" id="nwIns"></div></div>
+<h2>二、站對清單：低載比高、里程多的先看</h2>
+<div class="card"><div class="bar"><label>排序 <select id="nwSort"><option value="km_day">km／日</option><option value="low_share">低載比</option><option value="trips_day">班／日</option></select></label><label>方向 <select id="nwDir"><option value="">全部</option><option>南向</option><option>北向</option><option>同區</option></select></label><label>最少班／日 <input id="nwMin" type="number" value="1" step="0.5" style="width:60px"></label><input id="nwQ" type="search" placeholder="篩站名"><button id="nwXls">⬇ Excel</button></div>
+<div class="scroll" id="nwTable" style="max-height:60vh"></div><p class="note">班／日＝該站對所有班次出現次數 ÷ 統計天數；低載比＝發送積載率 ≤55% 的次數占比；km／日＝Σ(班次里程 × 出現次數) ÷ 天數。類型：名稱含「直達」＝直達、含「空櫃／空車」＝空櫃、起站或迄站是轉運中心（連接站數最多的前 8 站，可在下方調整）＝經轉運。</p></div>
+<h2>三、車型組合：雙拖從 6 月開始，每天約 130 班</h2>
+<div class="grid2"><div class="card"><h3>每日班次數：半拖／全拖／雙拖（41 行駛日報）</h3><div id="nwVeh"></div></div><div class="card"><h3>表定里程：半拖 vs 全拖（km）</h3><div id="nwKm"></div><div class="insight" id="nwVehIns"></div></div></div>
+<h2>轉運中心（依連接站數推定）</h2><div class="card"><div id="nwHubs" class="chips"></div><p class="note">若推定不對，請告訴我正確的轉運中心清單，我改成固定名單。</p></div>
+</main>
+<script>
+let TD={},PAIRS=[],HUBS=new Set(),DAYS=1;
+(async()=>{if(!shell('network.html'))return;await loadRows();
+ try{const j=await api({action:'meta',k:'trip_dow'});TD=j.v||{}}catch(e){alert('班次統計載入失敗：'+e.message);return}
+ const first=Object.values(TD).map(t=>t.first).filter(Boolean).sort()[0]||'20260401';DAYS=Math.max(1,ROWS.filter(r=>r.day>=first).length);
+ /* 轉運中心推定：連接站數最多的前 8 站 */
+ const deg={};for(const t of Object.values(TD)){if(!t.from||!t.to)continue;(deg[t.from]=deg[t.from]||new Set()).add(t.to);(deg[t.to]=deg[t.to]||new Set()).add(t.from)}
+ HUBS=new Set(Object.entries(deg).sort((a,b)=>b[1].size-a[1].size).slice(0,8).map(x=>x[0]));$('#nwHubs').innerHTML=[...HUBS].map(h=>`<span>${esc(h)}（連 ${deg[h].size} 站）</span>`).join('');
+ /* 站對彙整 */
+ const P={};for(const [code,t] of Object.entries(TD)){if(!t.from||!t.to||t.from===t.to)continue;const n=Object.values(t.dow||{}).reduce((a,d)=>a+(d.n||0),0);if(!n)continue;const low=Object.values(t.dow||{}).reduce((a,d)=>a+(d.low55||0),0);const avgN=Object.values(t.dow||{}).reduce((a,d)=>a+(d.avg||0)*(d.n||0),0);
+  const type=/直達/.test(t.name)?'直達':/空櫃|空車/.test(t.name)?'空櫃':(HUBS.has(t.from)||HUBS.has(t.to))?'轉運':'其他';const k=t.from+'→'+t.to;const p=P[k]=P[k]||{from:t.from,to:t.to,rfrom:t.rfrom,rto:t.rto,dir:t.dir,n:0,low:0,avgN:0,km:0,codes:0,types:{}};
+  p.n+=n;p.low+=low;p.avgN+=avgN;p.km+=(t.km||0)*n;p.codes++;p.types[type]=(p.types[type]||0)+n}
+ PAIRS=Object.values(P).map(p=>({...p,route:p.from+'→'+p.to,trips_day:p.n/DAYS,low_share:p.n?p.low/p.n*100:null,avg:p.n?p.avgN/p.n:null,km_day:p.km/DAYS,type:Object.entries(p.types).sort((a,b)=>b[1]-a[1])[0][0]}));
+ const tot=PAIRS.reduce((a,p)=>a+p.n,0),lowT=PAIRS.reduce((a,p)=>a+p.low,0),kmT=PAIRS.reduce((a,p)=>a+p.km,0);const byType=t=>PAIRS.filter(p=>p.type===t);const share=t=>{const l=byType(t);const n=l.reduce((a,p)=>a+p.n,0);return {n,low:n?l.reduce((a,p)=>a+p.low,0)/n*100:null,avg:n?l.reduce((a,p)=>a+p.avgN,0)/n:null}};
+ const sd=share('直達'),st=share('轉運'),se=share('空櫃');
+ $('#nwTiles').innerHTML=[['統計天數',DAYS,0],['站對數',PAIRS.length,0],['發送班／日',tot/DAYS,0],['低載比 %',tot?lowT/tot*100:null,1],['直達 班／日',sd.n/DAYS,0],['直達 低載比 %',sd.low,1],['經轉運 班／日',st.n/DAYS,0],['經轉運 低載比 %',st.low,1]].map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v">${fmt(v,d)}</div></div>`).join('');
+ REGS=[...new Set(PAIRS.flatMap(p=>[p.rfrom,p.rto]).filter(Boolean))].sort((a,b)=>RO.indexOf(a)-RO.indexOf(b));
+ $('#nwIns').innerHTML=`直達班次平均積載 <b>${fmt(sd.avg,1)}%</b>、低載比 <b>${fmt(sd.low,1)}%</b>；經轉運班次平均積載 <b>${fmt(st.avg,1)}%</b>、低載比 <b>${fmt(st.low,1)}%</b>。${sd.low!=null&&st.low!=null?(sd.low>st.low+5?'直達的低載比明顯較高：量不夠的直達線改經轉運中心併載，是班表層級的槓桿。':sd.low<st.low-5?'經轉運的低載比較高：轉運中心的接駁班次有併櫃空間。':'兩種路線的低載比接近，問題不在路線型態，在個別站對。'):''}`;
+ $('#nwCell').onchange=matrix;$('#nwType').onchange=matrix;matrix();
+ ['nwSort','nwDir','nwMin'].forEach(id=>$('#'+id).onchange=table);$('#nwQ').oninput=table;$('#nwXls').onclick=()=>exportXlsx([['route','站對'],['dir','方向'],['type','類型'],['codes','班次數'],['trips_day','班/日'],['avg','平均積載'],['low_share','低載比%'],['km_day','km/日']],PAIRS,'站對清單');table();
+ /* 車型 */
+ const veh=ROWS.filter(r=>r.n_semi!=null||r.n_full!=null||r.n_double!=null).slice(-120);chart('#nwVeh',veh,[{k:'n_semi',n:'半拖',c:'var(--acc)',nodots:true},{k:'n_full',n:'全拖',c:'var(--orange)',nodots:true},{k:'n_double',n:'雙拖',c:'var(--red)',nodots:true}],{h:260});
+ chart('#nwKm',ROWS.slice(-120),[{k:'km_semi',n:'半拖表定',c:'var(--acc)',nodots:true},{k:'km_full',n:'全拖表定',c:'var(--orange)',nodots:true,axis:'r'}],{h:220});
+ const d1=veh.find(r=>(r.n_double||0)>0);const lastV=veh[veh.length-1];const semiB=avgOf(veh.filter(r=>d1&&r.day<d1.day),'n_semi'),semiA=avgOf(veh.filter(r=>d1&&r.day>=d1.day),'n_semi');
+ $('#nwVehIns').innerHTML=d1?`雙拖自 <b>${iso(d1.day)}</b> 起出現，最近 ${fmt(lastV.n_double)} 班／日；半拖從之前平均 ${fmt(semiB)} 班降到 ${fmt(semiA)} 班。雙拖＝一個車頭拉兩櫃，同起迄的兩櫃改雙拖，里程直接減半：併櫃頁的 A 模式配對就是候選。`:'尚無雙拖資料。'})();
+const RO=['北一區','北二區','桃竹區','中區','彰嘉區','南區','未分區'];let REGS=[];
+function matrix(){const cell=$('#nwCell').value,type=$('#nwType').value;const regs=REGS;const M={};for(const p of PAIRS){if(type&&p.type!==type)continue;const k=(p.rfrom||'?')+'|'+(p.rto||'?');const m=M[k]=M[k]||{n:0,low:0,avgN:0,km:0};m.n+=p.n;m.low+=p.low;m.avgN+=p.avgN;m.km+=p.km}
+ const val=m=>!m||!m.n?null:cell==='trips'?m.n/DAYS:cell==='load'?m.avgN/m.n:cell==='low'?m.low/m.n*100:m.km/DAYS;const vals=Object.values(M).map(val).filter(v=>v!=null);const mx=Math.max(1,...vals);const cls=v=>v==null?'':v>mx*.6?'h4':v>mx*.35?'h3':v>mx*.15?'h2':v>0?'h1':'';
+ $('#nwMatrix').innerHTML='<table class="heat"><thead><tr><th>起＼迄</th>'+regs.map(r=>`<th class="num">${r}</th>`).join('')+'<th class="num">合計</th></tr></thead><tbody>'+regs.map(a=>{const row=regs.map(b=>val(M[a+'|'+b]));const tot=regs.reduce((s,b)=>{const m=M[a+'|'+b];if(!m)return s;s.n+=m.n;s.low+=m.low;s.avgN+=m.avgN;s.km+=m.km;return s},{n:0,low:0,avgN:0,km:0});return `<tr><th>${a}</th>`+row.map(v=>`<td class="${cls(v)}">${v==null?'':fmt(v,cell==='trips'||cell==='km'?0:1)}</td>`).join('')+`<td><b>${fmt(val(tot),cell==='trips'||cell==='km'?0:1)}</b></td></tr>`}).join('')+'</tbody></table>'}
+function table(){const sort=$('#nwSort').value,dir=$('#nwDir').value,min=+$('#nwMin').value,q=$('#nwQ').value.trim();const rows=PAIRS.filter(p=>(!dir||p.dir===dir)&&p.trips_day>=min&&(!q||p.route.includes(q))).sort((a,b)=>(b[sort]||0)-(a[sort]||0)).slice(0,400);
+ $('#nwTable').innerHTML=rows.length?'<table><thead><tr><th>站對</th><th>方向</th><th>類型</th><th class="num">班次數</th><th class="num">班／日</th><th class="num">平均積載</th><th class="num">低載比</th><th class="num">km／日</th><th class="num">可省估算 元/日*</th></tr></thead><tbody>'+rows.map(p=>`<tr><td>${stLink(p.from)}→${stLink(p.to)}</td><td>${esc(p.dir)}</td><td>${esc(p.type)}</td><td class="num">${p.codes}</td><td class="num">${fmt(p.trips_day,1)}</td><td class="num">${fmt(p.avg,1)}</td><td class="num ${p.low_share>=40?'up':''}">${fmt(p.low_share,0)}%</td><td class="num">${fmt(p.km_day)}</td><td class="num">${fmt(p.km_day*(p.low_share||0)/100*PRICE())}</td></tr>`).join('')+'</tbody></table>':'<p class="note">無資料</p>'}
+</script></body></html>

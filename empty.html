@@ -1,0 +1,47 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>空櫃回送・封櫃時段｜運務資料中樞</title><link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
+<body><main>
+<h1 class="pg">空櫃回送・封櫃時段</h1>
+<p class="sub">空駛率 19～20% 一直沒動，減開只減了重櫃班次。這頁找兩種可以動的：哪些站對在「對開空櫃」（兩邊都把空櫃送給對方），以及低載櫃集中在哪個封櫃時段（把封櫃延後就能併一櫃）。</p>
+<div class="card"><div class="bar"><label>到 <select id="emDay"></select></label><label>往前 <select id="emN"><option value="7">7 天</option><option value="14" selected>14 天</option><option value="28">28 天</option></select></label><label>方向 <select id="emDir"><option value="">全部</option><option>南向</option><option>北向</option><option>同區</option></select></label><input id="emQ" type="search" placeholder="篩站名"><button id="emRun" class="pri">分析</button><span id="emMsg" class="note"></span></div></div>
+<div class="tiles" id="emTiles" style="margin:10px 0"></div>
+<div class="grid2">
+ <div class="card"><h3>每日空櫃班次與無效里程</h3><div id="emTrend"></div></div>
+ <div class="card"><h3>對開空櫃的站對（A→B 與 B→A 都有空櫃）</h3><div class="sub">兩邊同時送空櫃給對方＝可以互相抵銷：改成一邊留櫃、或錯開日期。</div><div class="scroll" id="emPair" style="max-height:300px"></div></div>
+</div>
+<h2>空櫃最多的站對</h2>
+<div class="card"><div class="scroll" id="emTable" style="max-height:50vh"></div><p class="note">來源：206 運行表班次 × 31 主檔名稱含「空櫃／空車」；km＝113 班次里程中位數。班／日＝期間內出現次數 ÷ 天數。</p></div>
+<h2>站所空櫃淨流向</h2>
+<div class="card"><div class="scroll" id="emSt" style="max-height:40vh"></div><p class="note">送出＝該站當起站的空櫃班次；收到＝當迄站。淨送出大的站是「櫃太多」的站，淨收到大的站是「缺櫃」的站；缺櫃站附近若有櫃太多的站，回送就不用跑遠。</p></div>
+<h2>低載櫃的封櫃時段</h2>
+<div class="grid2"><div class="card"><h3>低載櫃（≤55%）封櫃時間分布</h3><div id="emSeal"></div></div><div class="card"><h3>怎麼用</h3><ul class="brief" style="font-size:13px"><li>低載櫃若集中在某一兩個時段，代表那個時段的班次太密：把封櫃時間往後移 30～60 分，兩櫃就能併成一櫃。</li><li>加班櫃（紅）若集中在深夜，是「白天沒裝滿、晚上加開」的訊號，先看加班檢核。</li><li>全班次的封櫃時段分布要在資料建置加入（待辦），目前只有低載櫃與加班櫃有封櫃時間。</li></ul><div class="insight" id="emSealIns"></div></div></div>
+</main>
+<script>
+let CACHE={};
+(async()=>{if(!shell('empty.html'))return;await loadRows();const sel=$('#emDay');ROWS.slice().reverse().forEach(r=>{const o=document.createElement('option');o.value=r.day;o.textContent=iso(r.day)+'（'+r.dow+'）';sel.appendChild(o)});const q=qs('d');sel.value=q&&BY[q]?q:ROWS[ROWS.length-1].day;$('#emRun').onclick=run;$('#emQ').oninput=()=>render();$('#emDir').onchange=()=>render();run()})();
+let IDLE=[],LOW=[],OT=[],DAYS=[];
+async function run(){const end=$('#emDay').value,n=+$('#emN').value;const i=ROWS.findIndex(r=>r.day===end);DAYS=ROWS.slice(Math.max(0,i-n+1),i+1).map(r=>r.day);$('#emMsg').innerHTML='<span class="spin"></span> 載入 '+DAYS.length+' 天…';
+ const need=DAYS.filter(d=>!CACHE[d]);await Promise.all(need.map(async d=>{try{const j=await api({action:'detail',day:iso(d),kinds:['idle_trips','low_loads','ot_trips']});CACHE[d]={idle:j.rows.find(r=>r.kind==='idle_trips')?.payload||[],low:j.rows.find(r=>r.kind==='low_loads')?.payload||[],ot:j.rows.find(r=>r.kind==='ot_trips')?.payload||[]}}catch(e){CACHE[d]={idle:[],low:[],ot:[]}}}));
+ IDLE=[];LOW=[];OT=[];DAYS.forEach(d=>{CACHE[d].idle.forEach(x=>IDLE.push({...x,day:d}));CACHE[d].low.forEach(x=>LOW.push({...x,day:d}));CACHE[d].ot.forEach(x=>OT.push({...x,day:d}))});$('#emMsg').textContent=`${iso(DAYS[0])}～${iso(DAYS[DAYS.length-1])}，空櫃班次 ${IDLE.length} 班`;render()}
+function render(){const dir=$('#emDir').value,q=$('#emQ').value.trim();const nd=DAYS.length||1;const price=PRICE();const dirOf=(a,b)=>{const ra=region(a),rb=region(b);if(!ra||!rb)return '';if(ra===rb)return '同區';return RO.indexOf(ra)<RO.indexOf(rb)?'南向':'北向'};
+ const rows=IDLE.filter(x=>(!q||(x.from+x.to).includes(q))).map(x=>({...x,dir:dirOf(x.from,x.to)})).filter(x=>!dir||x.dir===dir);
+ const list=ROWS.filter(r=>DAYS.includes(r.day));chart('#emTrend',list,[{k:'idle_trips',n:'空櫃班次',c:'var(--acc)',type:'bar'},{k:'idle_km',n:'無效里程 km',c:'var(--orange)',axis:'r',nodots:true}],{h:240});
+ const P={};rows.forEach(x=>{const k=x.from+'→'+x.to;const p=P[k]=P[k]||{from:x.from,to:x.to,dir:x.dir,n:0,km:0,days:new Set()};p.n++;p.km+=x.km||0;p.days.add(x.day)});const pairs=Object.values(P).map(p=>({...p,route:p.from+'→'+p.to,per_day:p.n/nd,km_day:p.km/nd,ndays:p.days.size})).sort((a,b)=>b.km_day-a.km_day);
+ const kmT=rows.reduce((a,x)=>a+(x.km||0),0);const top10=pairs.slice(0,10).reduce((a,p)=>a+p.km,0);
+ $('#emTiles').innerHTML=[['空櫃班次／日',rows.length/nd,1],['空櫃里程／日 km',kmT/nd,0],['≈ 元／日',kmT/nd*price,0],['站對數',pairs.length,0],['前 10 站對占里程 %',kmT?top10/kmT*100:null,0],['對開站對數',null,0]].map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v">${fmt(v,d)}</div></div>`).join('');
+ /* 對開 */
+ const both=[];const seen=new Set();pairs.forEach(p=>{const rk=p.to+'→'+p.from;const r=P[rk];if(r&&!seen.has(rk)&&!seen.has(p.route)){seen.add(p.route);seen.add(rk);both.push({a:p,b:{...r,route:rk,per_day:r.n/nd,km_day:r.km/nd},min:Math.min(p.n,r.n),km:Math.min(p.n,r.n)*Math.min(p.km/p.n||0,r.km/r.n||0)})}});both.sort((a,b)=>b.km-a.km);
+ $$('#emTiles .tile').slice(-1)[0].querySelector('.v').textContent=fmt(both.length);
+ $('#emPair').innerHTML=both.length?'<table><thead><tr><th>A→B</th><th class="num">班</th><th>B→A</th><th class="num">班</th><th class="num">可抵銷 班</th><th class="num">≈ 省 km</th></tr></thead><tbody>'+both.slice(0,60).map(x=>`<tr><td>${stLink(x.a.from)}→${stLink(x.a.to)}</td><td class="num">${x.a.n}</td><td>${stLink(x.b.from)}→${stLink(x.b.to)}</td><td class="num">${x.b.n}</td><td class="num">${x.min}</td><td class="num">${fmt(x.km)}</td></tr>`).join('')+'</tbody></table>':'<p class="note">期間內沒有對開空櫃的站對</p>';
+ $('#emTable').innerHTML=pairs.length?'<table><thead><tr><th>站對</th><th>方向</th><th class="num">班</th><th class="num">班／日</th><th class="num">出現天數</th><th class="num">km／日</th><th class="num">≈ 元／日</th><th>常見班次</th></tr></thead><tbody>'+pairs.slice(0,200).map(p=>{const names={};rows.filter(x=>x.from===p.from&&x.to===p.to).forEach(x=>names[x.name]=(names[x.name]||0)+1);return `<tr><td>${stLink(p.from)}→${stLink(p.to)}</td><td>${esc(p.dir)}</td><td class="num">${p.n}</td><td class="num">${fmt(p.per_day,1)}</td><td class="num">${p.ndays}/${nd}</td><td class="num">${fmt(p.km_day)}</td><td class="num">${fmt(p.km_day*price)}</td><td>${Object.entries(names).sort((a,b)=>b[1]-a[1]).slice(0,2).map(([n,c])=>esc(n)+'×'+c).join('、')}</td></tr>`}).join('')+'</tbody></table>':'<p class="note">無資料</p>';
+ const S={};rows.forEach(x=>{(S[x.from]=S[x.from]||{st:x.from,out:0,inn:0,okm:0}).out++;S[x.from].okm+=x.km||0;(S[x.to]=S[x.to]||{st:x.to,out:0,inn:0,okm:0}).inn++});const sts=Object.values(S).map(s=>({...s,net:s.out-s.inn})).sort((a,b)=>Math.abs(b.net)-Math.abs(a.net));
+ $('#emSt').innerHTML='<table><thead><tr><th>站所</th><th>區域</th><th class="num">送出空櫃</th><th class="num">收到空櫃</th><th class="num">淨送出</th><th class="num">送出 km</th></tr></thead><tbody>'+sts.slice(0,80).map(s=>`<tr><td>${stLink(s.st)}</td><td>${esc(region(s.st)||'')}</td><td class="num">${s.out}</td><td class="num">${s.inn}</td><td class="num ${s.net>0?'up':s.net<0?'down':''}">${s.net>0?'+':''}${s.net}</td><td class="num">${fmt(s.okm)}</td></tr>`).join('')+'</tbody></table>';
+ /* 封櫃時段 */
+ const hour=s=>{const m=/^(\d{1,2}):/.exec(s||'');return m?+m[1]:null};const H=Array.from({length:24},(_,h)=>({x:String(h).padStart(2,'0')+'時',low:0,ot:0}));LOW.forEach(x=>{const h=hour(x.seal);if(h!=null)H[h].low++});OT.forEach(x=>{const h=hour(x.seal);if(h!=null&&x.load!=null&&x.load<=55)H[h].ot++});
+ chart('#emSeal',H,[{k:'low',n:'低載櫃',c:'var(--acc)',type:'bar'},{k:'ot',n:'其中加班櫃',c:'var(--red)',type:'bar'}],{h:240});const peak=H.slice().sort((a,b)=>b.low-a.low).slice(0,3);const totL=H.reduce((a,h)=>a+h.low,0);
+ $('#emSealIns').innerHTML=totL?`低載櫃 ${totL} 櫃，最集中的三個時段：${peak.map(h=>`<b>${h.x}</b>（${h.low} 櫃，${Math.round(h.low/totL*100)}%）`).join('、')}。`:'期間內沒有低載櫃資料。'}
+const RO=['北一區','北二區','桃竹區','中區','彰嘉區','南區'];const REG_CACHE={};
+function region(st){const name=String(st||'').replace(/^\d{4}/,'');return REG_CACHE[name]||null}
+/* 區域對照：用 trip_dow 的 rfrom/rto 反推站所→區域 */
+(async()=>{try{const j=await api({action:'meta',k:'trip_dow'});const map={};for(const t of Object.values(j.v||{})){if(t.from&&t.rfrom)map[t.from.replace(/^\d{4}/,'')]=t.rfrom;if(t.to&&t.rto)map[t.to.replace(/^\d{4}/,'')]=t.rto}Object.assign(REG_CACHE,map);if(IDLE.length)render()}catch(e){}})();
+</script></body></html>

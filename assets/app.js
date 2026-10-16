@@ -1,5 +1,6 @@
 /* 運務資料中樞 共用：登入、API、外觀、導覽、KPI 載入、基準、圖表、匯出 */
-const API="https://hmqnlovyzlvvnkqmfwtt.supabase.co/functions/v1/nxhub";
+const API_PROD="https://hmqnlovyzlvvnkqmfwtt.supabase.co/functions/v1/nxhub";
+const API=(()=>{try{return localStorage.getItem('nx_api')||API_PROD}catch(e){return API_PROD}})();   /* 本機預覽：localStorage nx_api 指到 tools/mock_api.py */
 const DOWS='一二三四五六日';
 const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
 const fmt=(v,d=0)=>v==null||v===''||isNaN(v)?'—':Number(v).toLocaleString('zh-TW',{maximumFractionDigits:d,minimumFractionDigits:d});
@@ -31,12 +32,18 @@ function setAuth(a){AUTH=a;try{a?localStorage.setItem('nx_auth',JSON.stringify(a
 async function api(body){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,token:AUTH?.token})});const j=await r.json().catch(()=>({error:'回應解析失敗'}));if(!r.ok){if(r.status===401&&body.action!=='login'){setAuth(null);location.reload()}throw new Error(j.error||('HTTP '+r.status))}return j}
 function showLogin(){document.body.innerHTML=`<div id="login"><form class="login-card" id="loginForm"><h1>運務資料中樞</h1><p>新竹物流 運務處 · 每日運行狀況剖析 / 班次工具 / 資料倉</p><label>帳號</label><input id="liEmp" type="text" autocomplete="username" inputmode="numeric" required><label>密碼</label><input id="liPw" type="password" autocomplete="current-password" required><div class="err" id="liErr"></div><button class="pri" id="liBtn" style="width:100%;margin-top:6px">登入</button></form></div>`;
  $('#loginForm').addEventListener('submit',async ev=>{ev.preventDefault();$('#liErr').textContent='';$('#liBtn').disabled=true;try{const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',emp:$('#liEmp').value.trim(),pass:$('#liPw').value})});const j=await r.json();if(!r.ok)throw new Error(j.error||'登入失敗');setAuth({token:j.token,name:j.name,emp:$('#liEmp').value.trim()});location.reload()}catch(e){$('#liErr').textContent=e.message}finally{$('#liBtn').disabled=false}})}
-/* ---- 導覽外框 ---- */
-const NAV=[['index.html','總覽'],['day.html','當日快照'],['trend.html','趨勢'],['cut.html','減開清單'],['merge.html','併櫃模擬'],['ot.html','加班檢核'],['review.html','決策回看'],['station.html','站所'],['trip.html','班次'],['data.html','資料倉'],['cost.html','件成本'],['price.html','單價校正'],['status.html','更新狀態'],['docs.html','文件']];
+/* ---- 導覽外框：三個任務區（今天要決定／成效回看／資料與口徑），每區最多 6 個子頁 ---- */
+const AREAS=[
+ {id:'decide',name:'今天要決定',hint:'減開・併櫃・加班・空櫃，看完就能登記',pages:[['index.html','決策看板'],['cut.html','減開清單'],['merge.html','併櫃與雙拖'],['ot.html','加班檢核'],['empty.html','空櫃回送・封櫃時段']]},
+ {id:'review',name:'成效回看',hint:'決定了之後有沒有變好',pages:[['review.html','決策回看'],['trend.html','趨勢'],['day.html','當日快照'],['station.html','站所'],['network.html','路線網路・車型'],['trip.html','班次']]},
+ {id:'data',name:'資料與口徑',hint:'件成本怎麼算、資料從哪來',pages:[['cost.html','件成本'],['price.html','單價校正'],['moves.html','移櫃與棧板'],['data.html','資料倉'],['status.html','更新狀態'],['docs.html','文件']]}];
+const NAV=AREAS.flatMap(a=>a.pages);
 function shell(active){if(!AUTH?.token){showLogin();return false}
- const page=location.pathname.split('/').pop()||'index.html';const hdr=document.createElement('header');hdr.className='top';
- hdr.innerHTML=`<a class="brand" href="index.html">運務資料中樞</a><nav>${NAV.map(([h,n])=>`<a href="${h}" class="${(active||page)===h?'on':''}">${n}</a>`).join('')}</nav><span class="sp"></span><span class="badge" id="syncBadge">—</span><button id="themeBtn" title="深淺色">◐</button><button id="logoutBtn">登出</button>`;
- document.body.prepend(hdr);$('#themeBtn').onclick=toggleTheme;$('#logoutBtn').onclick=()=>{setAuth(null);sessionStorage.clear();location.href='index.html'};
+ const page=active||location.pathname.split('/').pop()||'index.html';const area=AREAS.find(a=>a.pages.some(p=>p[0]===page))||AREAS[0];
+ const hdr=document.createElement('header');hdr.className='top';
+ hdr.innerHTML=`<a class="brand" href="index.html">運務資料中樞</a><nav class="areas">${AREAS.map(a=>`<a href="${a.pages[0][0]}" class="${a.id===area.id?'on':''}" title="${a.hint}">${a.name}</a>`).join('')}</nav><span class="sp"></span><span class="badge" id="syncBadge">—</span><button id="themeBtn" class="ghost" title="深淺色">◐</button><button id="logoutBtn" class="ghost">登出</button>`;
+ const sub=document.createElement('nav');sub.className='subnav';sub.innerHTML=`<span class="area">${area.name}</span>`+area.pages.map(([h,n])=>`<a href="${h}" class="${h===page?'on':''}">${n}</a>`).join('');
+ document.body.prepend(sub);document.body.prepend(hdr);$('#themeBtn').onclick=toggleTheme;$('#logoutBtn').onclick=()=>{setAuth(null);sessionStorage.clear();location.href='index.html'};
  api({action:'meta',k:'sync'}).then(j=>{if(j.v)$('#syncBadge').textContent='資料同步 '+j.v.at.slice(5,16).replace('T',' ')}).catch(()=>{});return true}
 /* ---- KPI 資料（sessionStorage 快取 10 分鐘） ---- */
 let ROWS=[],BY={};
@@ -72,8 +79,33 @@ function briefing(day){const d=BY[day];if(!d)return [];const base=baseline(day);
 function insight(k,list){const m=KPI[k];const v=list.filter(r=>r[k]!=null);if(v.length<6)return '資料不足。';const last=v[v.length-1];const recent=v.slice(-7),prev=v.slice(-14,-7);const ar=avgOf(recent,k),ap=avgOf(prev,k);const mn=v.reduce((a,b)=>b[k]<a[k]?b:a),mx=v.reduce((a,b)=>b[k]>a[k]?b:a);
  let s=`${m.name}：最近 7 天平均 <b>${fmt(ar,m.dec)}</b>`;if(ap!=null){const p=(ar-ap)/ap*100;s+=`，比前 7 天${p>=0?'高':'低'} <b>${Math.abs(p).toFixed(1)}%</b>${m.dir?((p*m.dir>0)?'（往好的方向）':'（往壞的方向）'):''}`}
  s+=`；期間最高 ${fmt(mx[k],m.dec)}（${iso(mx.day).slice(5)} ${mx.dow}）、最低 ${fmt(mn[k],m.dec)}（${iso(mn.day).slice(5)} ${mn.dow}）；最新 ${iso(last.day)} 為 ${fmt(last[k],m.dec)}。`;return s}
-/* ---- SVG 圖 ---- */
-function chart(el,list,series,opt={}){if(typeof el==='string')el=$(el);const W=opt.w||680,H=opt.h||240,L=52,R=series.some(s=>s.axis==='r')?52:12,T=14,B=30;const n=list.length;if(!n){el.innerHTML='<p class="note">無資料</p>';return}
+/* ---- 圖表：ECharts（站內 vendor，載入失敗退回手繪 SVG）。介面不變：chart(el,list,series,{h,zero}) ----
+   series：{k:欄位, n:名稱, c:顏色('var(--acc)'可), type:'bar'|'line', axis:'l'|'r', band:[lo,hi], bandName, dash, nodots, w} */
+let EC_P=null;function ensureECharts(){if(window.echarts)return Promise.resolve();if(EC_P)return EC_P;EC_P=new Promise((res,rej)=>{const s=document.createElement('script');s.src='assets/vendor/echarts.min.js';s.onload=res;s.onerror=()=>rej(new Error('echarts'));document.head.appendChild(s)});return EC_P}
+const EC_INST=[];addEventListener('resize',()=>EC_INST.forEach(c=>{try{c.resize()}catch(e){}}));
+const cssVar=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const col=c=>!c?undefined:(c.startsWith('var(')?cssVar(c.slice(4,-1)):c);
+function chart(el,list,series,opt={}){if(typeof el==='string')el=$(el);if(!el)return;if(!list||!list.length){el.innerHTML='<p class="note">無資料</p>';return}ensureECharts().then(()=>chartEc(el,list,series,opt)).catch(()=>chartSvg(el,list,series,opt))}
+function chartEc(el,list,series,opt={}){el.innerHTML='';el.style.height=(opt.h||260)+'px';el.style.width='100%';const old=echarts.getInstanceByDom(el);if(old)old.dispose();const inst=echarts.init(el);EC_INST.push(inst);
+ const n=list.length;const cats=list.map(r=>r.x!=null?String(r.x):(r.day?r.day.slice(4,6)+'/'+r.day.slice(6)+(r.dow?' '+r.dow:''):''));const hasR=series.some(s=>s.axis==='r');const txt=col('var(--muted)'),line=col('var(--line)');const s=[],legend=[];
+ series.filter(x=>x.band).forEach(x=>{const yi=x.axis==='r'?1:0;const nm=x.bandName||'前 4 週同星期區間';s.push({name:nm+'＿lo',type:'line',stack:'b'+x.k,data:list.map(r=>r[x.band[0]]),symbol:'none',lineStyle:{opacity:0},areaStyle:{opacity:0},silent:true,yAxisIndex:yi,tooltip:{show:false},emphasis:{disabled:true}});
+  s.push({name:nm,type:'line',stack:'b'+x.k,data:list.map(r=>r[x.band[1]]!=null&&r[x.band[0]]!=null?+(r[x.band[1]]-r[x.band[0]]).toFixed(4):null),symbol:'none',lineStyle:{opacity:0},areaStyle:{color:col('var(--band)'),opacity:1},silent:true,yAxisIndex:yi,tooltip:{show:false},emphasis:{disabled:true}});legend.push(nm)});
+ series.forEach(x=>{const c=col(x.c)||col('var(--acc)');const yi=x.axis==='r'?1:0;const nm=x.n+(x.axis==='r'?'（右軸）':'');const data=list.map(r=>r[x.k]==null||isNaN(r[x.k])?null:+r[x.k]);
+  if(x.type==='bar')s.push({name:nm,type:'bar',data,yAxisIndex:yi,itemStyle:{color:c,opacity:.9},barMaxWidth:28});
+  else s.push({name:nm,type:'line',data,yAxisIndex:yi,symbol:'circle',symbolSize:n>60?3:5,showSymbol:!x.nodots&&n<=90,lineStyle:{width:x.w||2,type:x.dash?'dashed':'solid',color:c},itemStyle:{color:c},connectNulls:false});legend.push(nm)});
+ const mk=[];let st=null;list.forEach((r,i)=>{const we=r.dow==='六'||r.dow==='日';if(we&&st==null)st=i;if(st!=null&&(!we||i===n-1)){mk.push([{xAxis:cats[st]},{xAxis:cats[we?i:i-1]}]);st=null}});
+ if(mk.length&&s.length)s[s.length-1].markArea={silent:true,itemStyle:{color:col('var(--grey)'),opacity:.08},data:mk};
+ const yfmt=v=>fmt(v,Math.abs(v)<10?1:0);const yAxis=[{type:'value',scale:opt.zero===false,axisLabel:{color:txt,formatter:yfmt},splitLine:{lineStyle:{color:line}},axisLine:{show:false},axisTick:{show:false}}];
+ if(hasR)yAxis.push({type:'value',scale:opt.zero===false,axisLabel:{color:txt,formatter:yfmt},splitLine:{show:false},axisLine:{show:false},axisTick:{show:false}});
+ inst.setOption({animation:false,textStyle:{fontFamily:'system-ui,"Microsoft JhengHei","Noto Sans TC",sans-serif'},grid:{left:54,right:hasR?58:16,top:14,bottom:opt.legend===false?26:42},
+  tooltip:{trigger:'axis',valueFormatter:v=>v==null?'—':fmt(v,Math.abs(v)<10?2:1),backgroundColor:col('var(--card)'),borderColor:line,textStyle:{color:col('var(--fg)')}},
+  legend:opt.legend===false?{show:false}:{bottom:0,data:legend,textStyle:{color:txt},itemWidth:14,itemHeight:8,icon:'roundRect'},
+  xAxis:{type:'category',data:cats,boundaryGap:series.some(x=>x.type==='bar'),axisLabel:{color:txt,hideOverlap:true},axisLine:{lineStyle:{color:line}},axisTick:{show:false}},yAxis,series:s});return inst}
+/* 泛用 ECharts：直接給 option（新頁面用） */
+function echart(el,option,h){if(typeof el==='string')el=$(el);if(!el)return;ensureECharts().then(()=>{el.innerHTML='';el.style.height=(h||260)+'px';const old=echarts.getInstanceByDom(el);if(old)old.dispose();const inst=echarts.init(el);EC_INST.push(inst);const txt=col('var(--muted)'),line=col('var(--line)');
+ inst.setOption(Object.assign({animation:false,textStyle:{fontFamily:'system-ui,"Microsoft JhengHei","Noto Sans TC",sans-serif',color:txt},tooltip:{backgroundColor:col('var(--card)'),borderColor:line,textStyle:{color:col('var(--fg)')}},color:[col('var(--acc)'),col('var(--red)'),col('var(--orange)'),col('var(--blue)'),col('var(--grey)'),col('var(--good)')]},option))}).catch(()=>{el.innerHTML='<p class="note">圖表元件載入失敗</p>'})}
+/* ---- 手繪 SVG（備援） ---- */
+function chartSvg(el,list,series,opt={}){if(typeof el==='string')el=$(el);const W=opt.w||680,H=opt.h||240,L=52,R=series.some(s=>s.axis==='r')?52:12,T=14,B=30;const n=list.length;if(!n){el.innerHTML='<p class="note">無資料</p>';return}
  const x=i=>L+(W-L-R)*(n===1?0.5:i/(n-1));const ax={l:{min:Infinity,max:-Infinity},r:{min:Infinity,max:-Infinity}};
  series.forEach(s=>{list.forEach(r=>{const v=r[s.k];if(v!=null&&!isNaN(v)){const a=ax[s.axis||'l'];a.min=Math.min(a.min,v);a.max=Math.max(a.max,v)}if(s.band){const lo=r[s.band[0]],hi=r[s.band[1]];const a=ax[s.axis||'l'];if(lo!=null)a.min=Math.min(a.min,lo);if(hi!=null)a.max=Math.max(a.max,hi)}})});
  for(const a of Object.values(ax)){if(a.min===Infinity){a.min=0;a.max=1}if(opt.zero!==false)a.min=Math.min(a.min,0);if(a.max===a.min)a.max=a.min+1;const pad=(a.max-a.min)*.08;a.max+=pad;if(a.min<0||opt.zero===false)a.min-=pad}

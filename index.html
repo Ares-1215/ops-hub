@@ -1,48 +1,39 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>總覽｜運務資料中樞</title><meta name="description" content="新竹物流運務處資料中樞：昨天怎麼了、今天要決定什麼、資料可不可信">
+<title>決策看板｜運務資料中樞</title><meta name="description" content="新竹物流運務處資料中樞：昨天怎麼了、今天要決定什麼">
 <link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
 <body><main id="m">
-<h1 class="pg">總覽 <span class="small muted" id="asof"></span></h1><p class="sub">決策者簡報：昨天怎麼了 → 今天要決定什麼 → 資料可不可信。細節點進各頁。</p>
+<h1 class="pg">決策看板 <span class="small muted" id="asof"></span></h1>
+<p class="sub">件數只能預估、不能強求；能動的是班次。這頁只回答兩件事：昨天怎麼了、今天要決定什麼。每個決定都有清單和可省金額，登記後到「成效回看」看有沒有變好。</p>
 <div class="grid3" style="align-items:start">
-  <div class="card" style="grid-column:span 2"><h3>一、昨天怎麼了</h3><div class="sub" id="bsub"></div><ul class="brief" id="brief"><li><span class="spin"></span> 載入…</li></ul></div>
-  <div class="card"><h3>三、資料可不可信</h3><div id="trust"><span class="spin"></span></div></div>
+  <div class="card" style="grid-column:span 2"><h3 id="btitle">昨天怎麼了</h3><div class="sub" id="bsub"></div><ul class="brief" id="brief"><li><span class="spin"></span> 載入…</li></ul></div>
+  <div class="card"><h3>這些數字可不可信</h3><div id="trust"><span class="spin"></span></div></div>
 </div>
 <div class="tiles" id="kpi" style="margin:12px 0"></div>
-<div class="card"><h3>幹線件成本的先行指標：每千件里程（近 8 週）</h3><div class="sub">線＝每日實際值；淡綠帶＝前 4 週同星期的高低區間（落在帶內＝常態；高出帶＝今天比平常貴）</div><div id="main"></div><div class="insight" id="mainIns"></div></div>
-<h2>二、今天要決定什麼</h2>
-<div class="grid3" id="decide"><div class="card"><span class="spin"></span></div></div>
-<h2>各頁</h2>
-<div class="links">
-  <a href="cost.html"><b>件成本</b><span>每日推估件成本（實跑／表定兩口徑）、拆解、與 Excel 實際值回測</span></a>
-  <a href="day.html"><b>當日快照</b><span>任一天的 27 個指標、差異歸因、清單（空櫃／低載／加班／單位）</span></a>
-  <a href="trend.html"><b>趨勢</b><span>一次看一個指標，附同星期基準帶與結論句；可並排比較</span></a>
-  <a href="cut.html"><b>減開建議清單</b><span>明天該減哪些常態低載正班次，附可省里程與元</span></a>
-  <a href="merge.html"><b>併櫃模擬</b><span>同起迄／同區的低載櫃配對，可省車次與延後分鐘</span></a>
-  <a href="ot.html"><b>加班檢核</b><span>加班卻低載、星期別、方向失衡</span></a>
-  <a href="review.html"><b>決策回看</b><span>建議 vs 採用 vs 實際，每千件里程有沒有變好</span></a>
-  <a href="station.html"><b>站所</b><span>各站發送／低載／加班／空櫃／到著準點，點站名看該站</span></a>
-  <a href="trip.html"><b>班次</b><span>輸入班次代號看它每天的積載率與星期別體質</span></a>
-  <a href="data.html"><b>資料倉</b><span>81 張報表的原始資料預覽、下載、衍生彙整</span></a>
-  <a href="status.html"><b>更新狀態</b><span>每張報表資料到哪天、缺哪天、最後錯誤</span></a>
-  <a href="docs.html"><b>文件</b><span>報表盤點手冊、分析提案、離線看板</span></a>
-</div>
+<div class="card"><h3>先行指標：每千件里程（近 8 週）</h3><div class="sub">線＝每日實際值；淡藍帶＝前 4 週同星期的高低區間（落在帶內＝常態；高出帶＝那天比平常貴）。週末底色較深。</div><div id="main"></div><div class="insight" id="mainIns"></div></div>
+<h2>今天要決定什麼</h2>
+<div class="grid4" id="decide"><div class="card"><span class="spin"></span></div></div>
+<p class="note" style="margin-top:14px">每千件里程 ＝ 41 實際里程 ÷ 606 件數 × 1000；推估件成本 ＝ 實際里程 × 單價 ÷ 件數 ＋ 月率（棧板、租櫃、其他），是估算值，單價在「資料與口徑 › 單價校正」調。</p>
 </main>
 <script>
 (async()=>{if(!shell('index.html'))return;try{await loadRows()}catch(e){$('#brief').innerHTML='<li>'+esc(e.message)+'</li>';return}
- const latest=ROWS[ROWS.length-1];const last=ROWS.slice().reverse().find(r=>'一二三四五'.includes(r.dow)&&!r.holiday)||latest;const day=last.day;$('#asof').textContent='資料到 '+iso(latest.day)+'（'+latest.dow+'）';$('#bsub').textContent='最近一個平日 '+iso(day)+'（'+last.dow+'）；對照基準：前 4 週同星期平均'+(latest.day!==day?'；週末／假日資料請看當日快照':'');
- const b=briefing(day);$('#brief').innerHTML=b.map(s=>`<li>${s}</li>`).join('')+`<li class="muted small">看完整快照 → ${dayLink(day,'當日快照 '+iso(day))}</li>`;
- const base=baseline(day);$('#kpi').innerHTML=['cost_pp','est_cost','km_per_kpiece','empty_rate','ot_total','low55_n','idle_trips','unload_box_min','ontime117'].map(k=>tile(k,last[k],avgOf(base,k),k==='cost_pp'||k==='est_cost',k==='est_cost'?`單價 ${fmt(last.price,2)}（${last.price_src}）`:(k==='cost_pp'?`運輸 ${fmt(last.est_cost,2)}＋月率 ${fmt(last.nontr,2)}（${last.nontr_src}）<a href="cost.html">拆解</a>`:''))).join('');
- const list=withBaseline(ROWS.slice(-56),'km_per_kpiece');chart('#main',list,[{k:'km_per_kpiece',n:'每千件里程',c:'var(--acc)',band:['km_per_kpiece_bmin','km_per_kpiece_bmax']},{k:'km_per_kpiece_bavg',n:'同星期基準平均',c:'var(--grey)',dash:true,nodots:true}],{zero:false});$('#mainIns').innerHTML=insight('km_per_kpiece',ROWS.slice(-56));
- /* 二、今天要決定什麼 */
- const tm=lISO(new Date(Date.now()+864e5));const w=DOWS[(new Date(tm).getDay()+6)%7];let cutN=null,cutKm=0;
- try{const j=await api({action:'meta',k:'trip_dow'});const td=j.v||{};cutN=0;for(const t of Object.values(td)){const d=t.dow?.[w];if(!d||t.ot_share>0.2)continue;if(d.n4>=3&&d.low55_4>=3){cutN++;cutKm+=t.km||0}}}catch(e){}
- let mgN=null,mgKm=0;try{const j=await api({action:'detail',day:iso(day),kinds:['merge_pairs']});const p=(j.rows[0]?.payload||[]).filter(x=>x.sum<=100&&(x.delay_min==null||x.delay_min<=120)&&x.from!==x.to1);mgN=p.length;mgKm=p.reduce((a,x)=>a+(x.cut_km||0),0)}catch(e){}
+ const latest=ROWS[ROWS.length-1];const last=ROWS.slice().reverse().find(r=>'一二三四五'.includes(r.dow)&&!r.holiday)||latest;const day=last.day;
+ $('#asof').textContent='資料到 '+iso(latest.day)+'（'+latest.dow+'）';$('#btitle').textContent=iso(day)+'（'+last.dow+'）怎麼了';$('#bsub').textContent='最近一個平日；對照基準＝前 4 週同星期平均（排除假日）'+(latest.day!==day?'；週末／假日請看當日快照':'');
+ const b=briefing(day);$('#brief').innerHTML=b.slice(0,4).map(s=>`<li>${s}</li>`).join('')+`<li class="muted small">完整 27 個指標與清單 → ${dayLink(day,'當日快照 '+iso(day))}</li>`;
+ const base=baseline(day);
+ $('#kpi').innerHTML=['km_per_kpiece','cost_pp','empty_rate','low55_n','idle_trips','ontime117'].map(k=>tile(k,last[k],avgOf(base,k),k==='km_per_kpiece',k==='cost_pp'?`估算：運輸 ${fmt(last.est_cost,2)}＋月率 ${fmt(last.nontr,2)}（${last.nontr_src}） <a href="cost.html">拆解</a>`:'')).join('');
+ const list=withBaseline(ROWS.slice(-56),'km_per_kpiece');chart('#main',list,[{k:'km_per_kpiece',n:'每千件里程',c:'var(--acc)',band:['km_per_kpiece_bmin','km_per_kpiece_bmax']},{k:'km_per_kpiece_bavg',n:'同星期基準平均',c:'var(--grey)',dash:true,nodots:true}],{zero:false,h:280});$('#mainIns').innerHTML=insight('km_per_kpiece',ROWS.slice(-56));
+ /* 今天要決定什麼：四張決策卡 */
+ let tmD=new Date(Date.now()+864e5);while(tmD.getDay()===0||tmD.getDay()===6)tmD=new Date(tmD.getTime()+864e5);const tm=lISO(tmD);const w=DOWS[(tmD.getDay()+6)%7];const tmLabel=(tmD.getTime()-Date.now()<2*864e5?'明天 ':'下個平日 ')+tm.slice(5);const price=PRICE();
+ let cutN=null,cutKm=0;try{const j=await api({action:'meta',k:'trip_dow'});const td=j.v||{};cutN=0;for(const t of Object.values(td)){const d=t.dow?.[w];if(!d||t.ot_share>0.2)continue;if(d.n4>=3&&d.low55_4>=3){cutN++;cutKm+=t.km||0}}}catch(e){}
+ let mgN=null,mgKm=0,otLow=null,otN=null;try{const j=await api({action:'detail',day:iso(day),kinds:['merge_pairs','ot_trips']});const rows=j.rows||[];const mp=(rows.find(r=>r.kind==='merge_pairs')?.payload||[]).filter(x=>x.sum<=100&&(x.delay_min==null||x.delay_min<=120)&&x.from!==x.to1);mgN=mp.length;mgKm=mp.reduce((a,x)=>a+(x.cut_km||0),0);const ot=rows.find(r=>r.kind==='ot_trips')?.payload||[];otN=ot.length;otLow=ot.filter(x=>x.load!=null&&x.load<=55).length}catch(e){}
  let dec=null;try{const j=await api({action:'decide_list',from:tm,to:tm});dec=j.rows[0]||null}catch(e){}
- $('#decide').innerHTML=`<div class="card"><h3>明天 ${tm}（${w}）減開候選</h3><div class="v" style="font-size:28px;font-weight:600">${cutN==null?'—':cutN} 班</div><div class="sub">常態低載正班次（≤55% 且近 4 週同星期 ≥3 次），合計里程約 ${fmt(cutKm)} km ≈ ${fmt(cutKm*PRICE())} 元/日</div><p><a href="cut.html?d=${tm}">→ 開減開清單</a>${dec?`　<span class="tag">已登記 採用 ${(dec.adopted||[]).length} 班</span>`:''}</p></div>
- <div class="card"><h3>${iso(day)} 併櫃候選</h3><div class="v" style="font-size:28px;font-weight:600">${mgN==null?'—':mgN} 組</div><div class="sub">合計積載 ≤100%、延後 ≤120 分；可省約 ${fmt(mgKm)} km ≈ ${fmt(mgKm*PRICE())} 元</div><p><a href="merge.html?d=${day}">→ 開併櫃模擬</a></p></div>
- <div class="card"><h3>${iso(day)} 的異常清單</h3><ul class="brief" style="font-size:13px"><li>加班封櫃 ${fmt(last.seal_ot)} 櫃，其中低載的要檢討 → <a href="day.html?d=${day}&k=ot_trips">清單</a></li><li>低載櫃 ${fmt(last.low55_n)} 櫃 → <a href="day.html?d=${day}&k=low_loads">清單</a></li><li>空櫃班次 ${fmt(last.idle_trips)} 班、無效里程 ${fmt(last.idle_km)} km → <a href="day.html?d=${day}&k=idle_trips">清單</a></li><li>加班方向 南向−北向 ${last.ot_net_south>0?'+':''}${fmt(last.ot_net_south)} → <a href="day.html?d=${day}&k=ot_dirs">方向表</a></li></ul></div>`;
- /* 三、資料可不可信 */
- try{const j=await api({action:'status'});const y=lISO(new Date(Date.now()-864e5));const core=j.coverage.filter(c=>['41','83','2','3','205','206','79','606'].includes(c.rid));const stale=core.filter(c=>!c.max_day||c.max_day<y);const miss=core.reduce((a,c)=>a+(c.missing||[]).length,0);const sync=j.sync?.v;
-  $('#trust').innerHTML=`<div class="banner ${stale.length?'warn':'ok'}" style="margin:0 0 8px"><b>${stale.length?'⚠ 有報表還沒到昨天':'✔ 核心日報都到昨天'}</b></div><ul class="brief" style="font-size:13px;margin:0;padding-left:18px"><li>最近同步：${sync?esc(sync.at.slice(0,16).replace('T',' ')):'—'}</li><li>核心日報最新：${esc(core.map(c=>c.max_day).filter(Boolean).sort().slice(-1)[0]||'—')}${stale.length?`（落後：${stale.map(c=>c.rid).join('/')}）`:''}</li><li>區間內缺漏：${miss} 天份</li><li>件數（606）資料到：${esc(core.find(c=>c.rid==='606')?.max_day||'—')}</li></ul><p class="small"><a href="status.html">→ 更新狀態</a></p>`}catch(e){$('#trust').innerHTML='<p class="note">'+esc(e.message)+'</p>'}
+ const card=(title,n,unit,why,href,label,extra='')=>`<div class="card action"><h3>${title}</h3><div class="n">${n==null?'—':fmt(n)}<small>${unit}</small></div><div class="why">${why}</div><div class="go"><a href="${href}">${label}</a>${extra}</div></div>`;
+ $('#decide').innerHTML=card(`${tmLabel}（${w}）減開候選`,cutN,'班',`常態低載正班次（≤55% 且近 4 週同星期 ≥3 次）。合計約 ${fmt(cutKm)} km ≈ <b>${fmt(cutKm*price)} 元/日</b>。${dec?`已登記採用 ${(dec.adopted||[]).length} 班。`:'還沒登記。'}`,`cut.html?d=${tm}`,'開清單・登記')
+  +card(`${iso(day).slice(5)} 併櫃候選`,mgN,'組',`兩櫃合計積載 ≤100%、延後 ≤120 分，可併一櫃少開一車；同起迄的也是雙拖候選。可省約 ${fmt(mgKm)} km ≈ <b>${fmt(mgKm*price)} 元</b>。`,`merge.html?d=${day}`,'開模擬・登記')
+  +card(`${iso(day).slice(5)} 加班卻低載`,otLow,'櫃',`加班封櫃 ${fmt(otN)} 櫃，其中積載 ≤55% 的最該檢討；減開當天同線不應加班。`,`ot.html`,'檢核',`<a class="sec" href="day.html?d=${day}&k=ot_trips">清單</a>`)
+  +card(`${iso(day).slice(5)} 空櫃班次`,last.idle_trips,'班',`無效里程 ${fmt(last.idle_km)} km ≈ <b>${fmt((last.idle_km||0)*price)} 元</b>；空駛率 ${fmt(last.empty_rate,1)}%。看哪些站對在對開空櫃。`,`empty.html?d=${day}`,'看回送流向',`<a class="sec" href="day.html?d=${day}&k=idle_trips">清單</a>`);
+ /* 資料可不可信 */
+ try{const j=await api({action:'status'});const y=lISO(new Date(Date.now()-864e5));const core=(j.coverage||[]).filter(c=>['41','83','2','3','205','206','79','606'].includes(c.rid));const stale=core.filter(c=>!c.max_day||c.max_day<y);const miss=core.reduce((a,c)=>a+(c.missing||[]).length,0);const sync=j.sync?.v;
+  $('#trust').innerHTML=`<div class="banner ${stale.length?'warn':'ok'}" style="margin:0 0 8px"><b>${stale.length?'⚠ 有報表還沒到昨天':'✔ 核心日報都到昨天'}</b></div><ul class="brief" style="font-size:13px;margin:0;padding-left:18px;line-height:1.6"><li>最近同步：${sync?esc(sync.at.slice(0,16).replace('T',' ')):'—'}</li><li>核心日報最新：${esc(core.map(c=>c.max_day).filter(Boolean).sort().slice(-1)[0]||'—')}${stale.length?`（落後：${stale.map(c=>c.rid).join('/')}）`:''}</li><li>區間內缺漏：${miss} 天份</li></ul><p class="small" style="margin:6px 0 0"><a href="status.html">→ 更新狀態</a></p>`}catch(e){$('#trust').innerHTML='<p class="note">'+esc(e.message)+'</p>'}
 })();
 </script></body></html>
