@@ -21,7 +21,7 @@
 <script>
 let TRIP_DOW={},CUT_ROWS=[];
 const CUT_COLS=[['code','班次'],['name','名稱'],['route','起站→迄站'],['dir','方向'],['km','里程'],['recent','近期同星期積載率'],['low','低載/出現'],['avg','平均積載'],['allshare','全期低載比'],['save_km','可省 km/日'],['save_nt','可省 元/日'],['save_pp','可省 元/件']];
-(async()=>{if(!shell('cut.html'))return;await loadRows();$('#cutPrice').value=PRICE();$('#cutDay').value=qs('d')||lISO(new Date(Date.now()+864e5));
+(async()=>{if(!shell('cut.html'))return;await loadRows();$('#cutPrice').value=PRICE();$('#cutDay').value=qs('d')||lISO(new Date(Date.now()+864e5));if(qs('st'))$('#cutSt').value=qs('st');
  $('#cutRun').onclick=cutRun;$('#cutAll').onclick=()=>{$$('#cutTable input[type=checkbox]').forEach(c=>c.checked=true);cutSum()};$('#cutNone').onclick=()=>{$$('#cutTable input[type=checkbox]').forEach(c=>c.checked=false);cutSum()};
  $('#cutXls').onclick=()=>exportXlsx(CUT_COLS.map(c=>[c[0],c[1]]),CUT_ROWS,'減開建議_'+$('#cutDay').value);$('#cutSave').onclick=cutSave;$('#cutQ').oninput=()=>cutRender();$('#cutPrice').onchange=()=>{try{localStorage.setItem('nx_price',$('#cutPrice').value)}catch(e){}cutRun()};
  try{const j=await api({action:'meta',k:'trip_dow'});TRIP_DOW=j.v||{}}catch(e){alert('班次統計載入失敗：'+e.message)}cutRun()})();

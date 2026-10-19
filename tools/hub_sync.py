@@ -114,6 +114,9 @@ def build():
     log("build_tools: " + (r2.stdout.strip().splitlines() or ["?"])[-1] + ("" if not r2.returncode else " ERR " + r2.stderr[-300:]))
     r3 = subprocess.run([PY, "build_stations.py"], cwd=ENGINE, capture_output=True, text=True, encoding="utf-8", errors="replace")
     log("build_stations: " + (r3.stdout.strip().splitlines() or ["?"])[-1] + ("" if not r3.returncode else " ERR " + r3.stderr[-300:]))
+    for b in ("build_dirs.py", "build_match.py"):
+        rb = subprocess.run([PY, b], cwd=ENGINE, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        log(b + ": " + (rb.stdout.strip().splitlines() or ["?"])[-1] + ("" if not rb.returncode else " ERR " + rb.stderr[-300:]))
     r4 = subprocess.run([PY, "calib_price.py"], cwd=ENGINE, capture_output=True, text=True, encoding="utf-8", errors="replace")
     log("calib_price: " + (r4.stdout.strip().splitlines() or ["?"])[-1] + ("" if not r4.returncode else " ERR " + r4.stderr[-300:]))
     for b in ("build_dashboard.py", "build_proposal.py", "build_handbook.py"):
@@ -293,7 +296,7 @@ def upload_stations(st):
 
 def upload_meta(cov):
     d = ENGINE / "data"
-    for k, f in (("trip_km", "trip_km.json"), ("idle_trips", "idle_trips.json"), ("pair_low", "pair_low.json"), ("trip_dow", "trip_dow.json"), ("ot_agg", "ot_agg.json"), ("price_calib", "price_calib.json"), ("moves_agg", "moves_agg.json")):
+    for k, f in (("trip_km", "trip_km.json"), ("idle_trips", "idle_trips.json"), ("pair_low", "pair_low.json"), ("trip_dow", "trip_dow.json"), ("ot_agg", "ot_agg.json"), ("price_calib", "price_calib.json"), ("moves_agg", "moves_agg.json"), ("match", "match.json"), ("dirs_agg", "dirs_agg.json")):
         if (d / f).exists():
             edge({"action": "ingest_meta", "k": k, "v": json.loads((d / f).read_text(encoding="utf-8"))})
     if (d / "trip_load.json").exists():
@@ -368,6 +371,11 @@ def main():
         pull_monthly(today)
     if not a.upload_only:
         build()
+        if not a.no_pull:   # 第三層證據：對最近 3 天「查無」的櫃號抓 51 車廂光罩，再重算燈號
+            r51 = subprocess.run([PY, "pull_51.py", "--days", "3"], cwd=ENGINE, capture_output=True, text=True, encoding="utf-8", errors="replace")
+            log("pull_51: " + (r51.stdout.strip().splitlines() or ["?"])[-1] + ("" if not r51.returncode else " ERR " + r51.stderr[-300:]))
+            rm2 = subprocess.run([PY, "build_moves.py"], cwd=ENGINE, capture_output=True, text=True, encoding="utf-8", errors="replace")
+            log("build_moves(2): " + (rm2.stdout.strip().splitlines() or ["?"])[-1])
     st = load_state()
     upload_daily(); upload_detail(st); save_state(st)
     upload_raw(st); save_state(st)

@@ -1,0 +1,31 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>南北結構｜運務資料中樞</title><link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
+<body><main>
+<h1 class="pg">南北結構 <span class="small muted" id="blAsof"></span></h1>
+<p class="sub">貨往南多還是往北多，決定了哪個方向在跑空櫃、哪個方向要加班。南向＝起站區域在北、迄站在南（北一→北二→桃竹→中→彰嘉→南）；同區不算。來源：205 發送封櫃逐櫃、206×31 空櫃班次、83 加班方向、606 各區件數。</p>
+<div class="tiles" id="blTiles"></div>
+<div class="grid2" style="margin-top:12px">
+ <div class="card"><h3>每天南向 vs 北向：發送櫃數與「滿櫃當量」</h3><div class="sub">滿櫃當量＝Σ積載率÷100，等於「真的裝了多少櫃的貨」；兩條線的差就是空的那一截要回送的量</div><div id="blTrips"></div></div>
+ <div class="card"><h3>每天南向 vs 北向：空櫃班次與加班櫃</h3><div class="sub">空櫃往哪個方向多，就是那個方向的貨少、櫃子要回去</div><div id="blIdle"></div></div>
+</div>
+<div class="insight" id="blIns" style="margin-top:12px"></div>
+<h2>星期別（近 28 天平均）</h2>
+<div class="card"><div class="scroll" id="blDow" style="max-height:320px"></div><p class="note">失衡＝（南向滿櫃當量 − 北向滿櫃當量）÷ 兩者合計；正值＝南向貨多。空櫃淨回送＝北向空櫃 − 南向空櫃（正值＝櫃子往北回）。</p></div>
+<h2>各區發送件數（606）與到著件數（117）</h2>
+<div class="card"><div class="bar"><label>日期 <select id="blDay"></select></label></div><div class="scroll" id="blReg" style="max-height:300px"></div><p class="note">發送多、到著少的區＝貨淨流出（櫃子會缺）；到著多、發送少的區＝貨淨流入（櫃子會多、要回送）。117 只有營業所有資料。</p></div>
+</main>
+<script>
+(async()=>{if(!shell('balance.html'))return;await loadRows();const mv=ROWS.filter(r=>r.dir_s_trips!=null);if(!mv.length){$('#blTiles').innerHTML='<p class="note">尚無方向資料</p>';return}
+ const last=mv[mv.length-1];$('#blAsof').textContent='資料到 '+iso(last.day);const wk=mv.filter(r=>'一二三四五'.includes(r.dow)&&!r.holiday).slice(-20);const a=k=>avgOf(wk,k);
+ const imb=(a('dir_s_fulleq')-a('dir_n_fulleq'))/((a('dir_s_fulleq')+a('dir_n_fulleq'))||1)*100;
+ $('#blTiles').innerHTML=[['南向 櫃／日',fmt(a('dir_s_trips')),`平均積載 ${fmt(a('dir_s_load'),1)}%・低載 ${fmt(a('dir_s_low'))} 櫃`],['北向 櫃／日',fmt(a('dir_n_trips')),`平均積載 ${fmt(a('dir_n_load'),1)}%・低載 ${fmt(a('dir_n_low'))} 櫃`],['貨量失衡',`${imb>0?'+':''}${fmt(imb,1)}%`,imb>0?'南向貨多（北上回空）':'北向貨多（南下回空）'],['空櫃 南向／北向 班／日',`${fmt(a('dir_s_idle'))}／${fmt(a('dir_n_idle'))}`,`無效里程 ${fmt(a('dir_s_idlekm'))}／${fmt(a('dir_n_idlekm'))} km`],['加班櫃 南向／北向',`${fmt(a('dir_s_ot'))}／${fmt(a('dir_n_ot'))}`,'205 類別含加班'],['同區 櫃／日',fmt(a('dir_same_trips')),'不分南北']].map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+ const list=mv.slice(-56);chart('#blTrips',list,[{k:'dir_s_trips',n:'南向 櫃數',c:'var(--acc)',nodots:true},{k:'dir_n_trips',n:'北向 櫃數',c:'var(--red)',nodots:true},{k:'dir_s_fulleq',n:'南向 滿櫃當量',c:'var(--acc)',dash:true,nodots:true},{k:'dir_n_fulleq',n:'北向 滿櫃當量',c:'var(--red)',dash:true,nodots:true}],{h:260});
+ chart('#blIdle',list,[{k:'dir_s_idle',n:'南向 空櫃',c:'var(--acc)',type:'bar'},{k:'dir_n_idle',n:'北向 空櫃',c:'var(--red)',type:'bar'},{k:'dir_s_ot',n:'南向 加班櫃',c:'var(--acc)',nodots:true,axis:'r'},{k:'dir_n_ot',n:'北向 加班櫃',c:'var(--red)',nodots:true,axis:'r'}],{h:260});
+ const netIdle=a('dir_n_idle')-a('dir_s_idle');
+ $('#blIns').innerHTML=`近 20 個平日：南向每天 <b>${fmt(a('dir_s_trips'))}</b> 櫃、北向 <b>${fmt(a('dir_n_trips'))}</b> 櫃，櫃數幾乎對稱，但滿櫃當量 南 ${fmt(a('dir_s_fulleq'))} vs 北 ${fmt(a('dir_n_fulleq'))}（失衡 <b>${imb>0?'+':''}${fmt(imb,1)}%</b>）。空櫃 ${netIdle>0?'往北':'往南'}回送每天多 <b>${fmt(Math.abs(netIdle))}</b> 班，${netIdle>0?'北向':'南向'}低載 ${fmt(netIdle>0?a('dir_n_low'):a('dir_s_low'))} 櫃／日：這個方向是「回程」，減開與併櫃先從這個方向挑。`;
+ /* 星期別 */
+ try{const j=await api({action:'meta',k:'dirs_agg'});const D=j.v?.dow||{};$('#blDow').innerHTML='<table><thead><tr><th>星期</th><th class="num">天數</th><th class="num">南向 櫃</th><th class="num">北向 櫃</th><th class="num">南向 滿櫃當量</th><th class="num">北向 滿櫃當量</th><th class="num">失衡</th><th class="num">南向 空櫃</th><th class="num">北向 空櫃</th><th class="num">空櫃淨回送</th><th class="num">南向 加班</th><th class="num">北向 加班</th></tr></thead><tbody>'+DOWS.split('').filter(w=>D[w]).map(w=>{const v=D[w];const n=v.n||1;const im=(v.s_full-v.n_full)/((v.s_full+v.n_full)||1)*100;return `<tr><td>${w}</td><td class="num">${v.n}</td><td class="num">${fmt(v.s_trips/n)}</td><td class="num">${fmt(v.n_trips/n)}</td><td class="num">${fmt(v.s_full/n)}</td><td class="num">${fmt(v.n_full/n)}</td><td class="num ${Math.abs(im)>=10?'up':''}">${im>0?'+':''}${fmt(im,1)}%</td><td class="num">${fmt(v.s_idle/n)}</td><td class="num">${fmt(v.n_idle/n)}</td><td class="num">${fmt((v.n_idle-v.s_idle)/n)}</td><td class="num">${fmt(v.s_ot/n,1)}</td><td class="num">${fmt(v.n_ot/n,1)}</td></tr>`}).join('')+'</tbody></table>'}catch(e){$('#blDow').innerHTML='<p class="note">'+esc(e.message)+'</p>'}
+ /* 各區 */
+ const sel=$('#blDay');mv.slice().reverse().slice(0,60).forEach(r=>{const o=document.createElement('option');o.value=r.day;o.textContent=iso(r.day)+'（'+r.dow+'）';sel.appendChild(o)});sel.value=(wk[wk.length-1]||last).day;const reg=async()=>{const day=sel.value;$('#blReg').innerHTML='<span class="spin"></span>';try{const j=await api({action:'detail',day:iso(day),kinds:['dirs']});const d=j.rows.find(r=>r.kind==='dirs')?.payload||{};const regs=['北一區','北二區','桃竹區','中區','彰嘉區','南區'];const P=d.pieces||{},A=d.arr||{};const tp=Object.values(P).reduce((a,b)=>a+b,0),ta=Object.values(A).reduce((a,b)=>a+b,0);
+  $('#blReg').innerHTML='<table><thead><tr><th>區域</th><th class="num">發送件數</th><th class="num">占比</th><th class="num">到著件數</th><th class="num">占比</th><th class="num">淨流（到著−發送）</th></tr></thead><tbody>'+regs.map(r=>`<tr><td>${r}</td><td class="num">${fmt(P[r])}</td><td class="num">${tp?fmt(P[r]/tp*100,1)+'%':'—'}</td><td class="num">${fmt(A[r])}</td><td class="num">${ta?fmt(A[r]/ta*100,1)+'%':'—'}</td><td class="num ${(A[r]||0)-(P[r]||0)>0?'up':'down'}">${A[r]!=null&&P[r]!=null?fmt(A[r]-P[r]):'—'}</td></tr>`).join('')+`<tr><td><b>合計</b></td><td class="num"><b>${fmt(tp)}</b></td><td></td><td class="num"><b>${fmt(ta)}</b></td><td></td><td></td></tr></tbody></table>`}catch(e){$('#blReg').innerHTML='<p class="note">'+esc(e.message)+'</p>'}};sel.onchange=reg;reg()})();
+</script></body></html>
