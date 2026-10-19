@@ -1,16 +1,29 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>單價校正｜運務資料中樞</title><link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
 <body><main>
-<h1 class="pg">單價校正</h1><p class="sub">「估算幹線運輸件成本」用的 元/公里 從哪裡來。自動模式：該月有 Excel 就用 Excel，沒有就用 626，再沒有就沿用最近一個月；手動模式：固定一個數。</p>
+<h1 class="pg">單價校正：推估件成本用的「元／公里」</h1>
+<p class="sub">中樞每天的「推估件成本」＝ 41 實際里程 × <b>單價</b> ÷ 件數 ＋ 非運輸月率。單價就是「每跑一公里幹線多少錢」，它決定推估的高低；里程量才是每天在變的東西。這頁只做一件事：決定每個月用哪個單價。</p>
 <div class="card"><div class="bar">
- <label>模式 <select id="mode"><option value="auto">自動（Excel → 626 → 沿用）</option><option value="manual">手動固定</option></select></label>
+ <label>模式 <select id="mode"><option value="auto">自動（該月 Excel → 沒有就沿用最近一個月）</option><option value="manual">手動固定</option></select></label>
  <label>手動值 <input id="manual" type="number" step="0.01" style="width:80px"> 元/km</label>
  <button id="save" class="pri">套用</button><span class="note" id="saved"></span></div>
  <div class="insight" id="now"></div></div>
-<h2>每月單價 <span class="small muted">Excel＝件成本分析.xlsx 的 Σ運輸費用 ÷ Σ41 實際里程；626＝勾選科目「運務中心計」÷ Σ41 實際里程</span></h2>
+<div class="grid2" style="margin:12px 0">
+ <div class="card"><h3>兩種單價，差在用哪個里程當分母</h3><ul class="brief" style="font-size:13px;line-height:1.7">
+  <li><b>實跑單價</b>＝ Excel 運輸費用 ÷ 41 實際里程（含空駛）。中樞每天用 41 實際里程推估，所以用這個，4～9 月 <span id="pRange1">—</span> 元/km。</li>
+  <li><b>表定單價</b>＝ Excel 運輸費用 ÷ 表定里程（半拖＋增減開＋加班＋全拖）。這是件成本分析表自己的算法，全年固定約 23.8；簡報裡講「單價全年沒變」指的是這個。</li>
+  <li>兩個都對，只是分母不同；實跑單價比較低是因為實際里程比表定多了空駛那一段。</li>
+  <li><b>626 單價</b>（待確認）＝ 626 財務科目「運務中心計」金額 ÷ 41 實際里程。科目對應還沒跟財務確認，目前用 S176 算出來明顯偏高，先當參考，不會被自動模式採用。</li></ul></div>
+ <div class="card"><h3>這跟件成本有什麼關係</h3><ul class="brief" style="font-size:13px;line-height:1.7">
+  <li>推估件成本 ＝ 里程 × 單價 ÷ 件數 ＋ 月率。單價高估 1 元/km，件成本就高估約 0.3 元/件（每天 20 萬 km ÷ 65 萬件）。</li>
+  <li>回測（件成本頁）：用實跑單價推估，誤差中位 +0.03 元/件、九成在 ±0.5。</li>
+  <li>月底拿到新的件成本分析表放進 <code>ops-hub\tools\cost\</code>，該月單價就會自動校正，不用手動改。</li></ul></div>
+</div>
+<h2>每月單價</h2>
 <div class="scroll" id="months" style="max-height:none"></div>
-<h2>626 科目組合 <span class="small muted">勾選哪些科目算「幹線運輸費用」（預設 S176 聯運費，待財務確認）</span></h2>
-<div class="card"><div class="bar"><input id="cq" type="search" placeholder="篩科目"><button id="csave" class="pri">儲存科目組合</button><span class="note">右欄顯示各科目「運務中心計」最近一個整月金額，拿來跟 Excel 同月的運輸費用對，最接近的就是對應科目</span></div><div class="scroll" id="codes" style="max-height:420px"></div></div>
+<p class="note">「採用」欄＝自動模式當月實際用的單價與來源；當月沒有 Excel 就沿用最近一個有的月份（9 月只到 13 日仍算有）。</p>
+<details class="fold" style="margin-top:14px"><summary style="cursor:pointer;color:var(--acc);font-weight:600">626 科目組合（待財務確認；what-if 用）</summary>
+<div class="card" style="margin-top:8px"><div class="bar"><input id="cq" type="search" placeholder="篩科目"><button id="csave" class="pri">儲存科目組合</button><span class="note">右欄是各科目「運務中心計」最近一個整月金額；拿來跟 Excel 同月運輸費用對，最接近的就是對應科目。存在這台瀏覽器，只影響 626 單價欄。</span></div><div class="scroll" id="codes" style="max-height:420px"></div></div></details>
 <h2>Excel 來源</h2>
 <div class="card"><p>把每月拿到的「件成本分析.xlsx」放進 <code>C:\Users\26516\ops-hub\tools\cost\</code>，同步時會自動讀（表頭要有「日期／件數／運輸費用」）。新檔會覆蓋舊檔同一天的數字。</p><div id="src"></div></div>
 </main>
@@ -19,7 +32,8 @@
  $('#save').onclick=()=>{try{localStorage.setItem('nx_price_mode',$('#mode').value);localStorage.setItem('nx_price',$('#manual').value)}catch(e){}sessionStorage.removeItem('nx_kpi');$('#saved').textContent='已套用，各頁重新整理後生效';render()};
  const last=ROWS[ROWS.length-1];const pr=priceFor(last.day);$('#now').innerHTML=`目前 ${iso(last.day)} 用的單價：<b>${fmt(pr.price,2)} 元/km</b>（來源：${pr.src}）`;
  const months=new Set([...Object.keys(C.excel?.months||{}),...Object.keys(C.c626?.months||{}),...Object.keys(C.km_month||{})]);const ms=[...months].filter(m=>m>='202604').sort();
- function render(){$('#months').innerHTML='<table><thead><tr><th>月份</th><th class="num">41 實際里程</th><th class="num">Excel 運輸費用</th><th class="num">Excel 天數</th><th class="num">Excel 單價</th><th class="num">626 選定科目金額</th><th class="num">626 單價</th><th>自動模式採用</th></tr></thead><tbody>'+ms.map(m=>{const ex=C.excel?.months?.[m];const p6=price626(m);const c6=C.c626?.months?.[m];const cost6=c6?CODES626().reduce((a,c)=>a+((c6[c]||[0,0])[0]),0):null;const use=priceFor(m+'15');return `<tr><td>${m.slice(0,4)}-${m.slice(4)}</td><td class="num">${fmt(C.km_month?.[m])}</td><td class="num">${fmt(ex?.cost)}</td><td class="num">${ex?.days??'—'}</td><td class="num"><b>${fmt(ex?.price,2)}</b></td><td class="num">${fmt(cost6)}</td><td class="num">${fmt(p6,2)}</td><td>${fmt(use.price,2)}（${use.src}）</td></tr>`}).join('')+'</tbody></table>'}
+ const pv=ms.map(m=>C.excel?.months?.[m]?.price).filter(Boolean);if(pv.length)$('#pRange1').textContent=`${fmt(Math.min(...pv),2)}～${fmt(Math.max(...pv),2)}`;
+ function render(){$('#months').innerHTML='<table><thead><tr><th>月份</th><th class="num">41 實際里程 km</th><th class="num">Excel 運輸費用 元</th><th class="num">Excel 天數</th><th class="num">實跑單價</th><th class="num">表定單價</th><th class="num">626 單價（待確認）</th><th>採用</th></tr></thead><tbody>'+ms.map(m=>{const ex=C.excel?.months?.[m];const p6=price626(m);const use=priceFor(m+'15');return `<tr><td>${m.slice(0,4)}-${m.slice(4)}</td><td class="num">${fmt(C.km_month?.[m])}</td><td class="num">${fmt(ex?.cost)}</td><td class="num">${ex?.days??'—'}</td><td class="num"><b>${fmt(ex?.price,2)}</b></td><td class="num">${fmt(ex?.rates?.sched_rate,2)}</td><td class="num muted">${fmt(p6,2)}</td><td>${fmt(use.price,2)}<span class="muted small">（${use.src}）</span></td></tr>`}).join('')+'</tbody></table>'}
  render();
  const lastFull=[...ms].reverse().find(m=>C.c626?.months?.[m]&&C.excel?.months?.[m]?.days>=28)||[...ms].reverse().find(m=>C.c626?.months?.[m]);const sel=new Set(CODES626());
  const codes=Object.entries(C.codes||{}).map(([c,n])=>({c,n,amt:(C.c626?.months?.[lastFull]?.[c]||[0,0])[0],all:(C.c626?.months?.[lastFull]?.[c]||[0,0])[1]})).sort((a,b)=>b.amt-a.amt);

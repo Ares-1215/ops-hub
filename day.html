@@ -5,7 +5,7 @@
 <div class="bar"><label>日期 <select id="day"></select></label><button id="prev">‹ 前一天</button><button id="next">後一天 ›</button><a href="price.html" class="note">單價來源 →</a><span class="note" id="note"></span></div>
 <div class="card"><h3>結論</h3><ul class="brief" id="brief"></ul></div>
 <h2>指標 <span class="small muted" id="snapTitle"></span></h2>
-<div class="tiles" id="tiles"></div>
+<div class="tiles" id="tiles"></div><details class="fold" style="margin-top:8px"><summary style="cursor:pointer;color:var(--acc);font-weight:600">其他指標（到著、人力、里程拆解…）</summary><div class="tiles" id="tiles2" style="margin-top:8px"></div></details>
 <h2>為什麼：每千件里程差異歸因 <span class="small muted">對前 4 週同星期平均</span></h2>
 <div class="grid2"><div class="card" id="attr"></div><div class="card"><h3>驅動指標對照</h3><div id="drivers"></div></div></div>
 <h2>單位拆解（41 行駛日報）</h2><div class="scroll" id="units" style="max-height:none"></div>
@@ -28,7 +28,7 @@ let DETAIL={},DROWS=[];
  $('#dkind').onchange=loadDetail;$('#dq').oninput=renderD;$('#dxls').onclick=()=>exportXlsx(DCOLS[$('#dkind').value].map(c=>[c[0],c[1]]),DROWS,`${$('#dkind').value}_${sel.value}`);render()})();
 function render(){const day=$('#day').value;const d=BY[day];const base=baseline(day);$('#snapTitle').textContent=iso(day)+'（'+d.dow+'）　對照：前 4 週同星期平均（'+base.map(b=>iso(b.day).slice(5)).join('、')+'）';
  $('#brief').innerHTML=briefing(day).map(s=>`<li>${s}</li>`).join('')||'<li class="muted">無基準可比</li>';
- $('#tiles').innerHTML=KPIS.map(([k])=>tile(k,d[k],avgOf(base,k),k==='est_cost',k==='est_cost'?`單價 ${fmt(d.price,2)}（${d.price_src}）`:'')).join('');
+ const CORE=['km_per_kpiece','cost_pp','est_cost','pieces','km_act','empty_rate','low55_n','idle_trips','ot_total','avg_load','arrive_ontime_rate','moves_boxes'];const mk=ks=>ks.filter(k=>KPI[k]).map(k=>tile(k,d[k],avgOf(base,k),k==='km_per_kpiece'||k==='cost_pp',k==='est_cost'?`單價 ${fmt(d.price,2)}（${d.price_src}）`:'')).join('');$('#tiles').innerHTML=mk(CORE);$('#tiles2').innerHTML=mk(KPIS.map(k=>k[0]).filter(k=>!CORE.includes(k)));
  const a=attribution(day);if(a){const rows=[['件數效應（件數變了，固定里程被攤薄或攤厚）',a.vol],['空駛里程效應（空櫃＋空車頭里程變了）',a.empty],['重櫃里程效應（載貨里程變了＝班次數×里程）',a.loaded],['殘差（里程三段加總與實際里程的差）',a.resid]];
   $('#attr').innerHTML=`<h3>每千件里程 ${fmt(d.km_per_kpiece,1)} vs 基準 ${fmt(a.base.km_per_kpiece,1)}：差 <b class="${a.total>0?'up':'down'}">${a.total>0?'+':''}${a.total.toFixed(1)} km/千件</b></h3><div class="sub">換算：${a.total>0?'+':''}${(a.total*a.price/1000).toFixed(2)} 元/件（單價 ${a.price}）≈ ${fmt(a.total*a.price/1000*a.pieces)} 元/日</div><table><thead><tr><th>來源</th><th class="num">km/千件</th><th class="num">元/件</th><th class="num">佔變動量</th></tr></thead><tbody>${(()=>{const tot=rows.reduce((x,[,v])=>x+Math.abs(v),0);return rows.map(([n,v])=>`<tr><td style="white-space:normal">${n}</td><td class="num ${v>0?'up':'down'}">${v>0?'+':''}${v.toFixed(1)}</td><td class="num">${(v*a.price/1000).toFixed(2)}</td><td class="num">${tot?Math.round(Math.abs(v)/tot*100)+'%':'—'}</td></tr>`).join('')})()}</tbody></table><p class="note">歸因是精確拆解（三項加殘差＝差異），不是因果；重櫃里程多半由班次數與加班決定，看右表。</p>`}else $('#attr').innerHTML='<p class="note">件數或基準不足，無法歸因。</p>';
  const DRV=[['pieces','件數'],['trips206','運行表班次'],['trucks41','車頭數'],['seal_ot','加班封櫃'],['ot_total','加班台數'],['ot_net_south','南向淨額'],['low55_n','低載櫃'],['avg_load','平均積載率'],['idle_trips','空櫃班次'],['idle_km','無效里程'],['km_empty_box','空櫃里程'],['km_empty_head','空車頭里程'],['km_loaded','重櫃里程'],['km_plan','運行表里程'],['arrive_ontime_rate','到著準點率'],['unload_med_min','卸時中位']];

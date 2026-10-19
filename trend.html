@@ -1,7 +1,7 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>趨勢｜運務資料中樞</title><link rel="stylesheet" href="assets/app.css"><script src="assets/app.js"></script></head>
 <body><main>
-<h1 class="pg">趨勢</h1><p class="sub">一次看一個指標：線＝每日值，淡綠帶＝前 4 週同星期的高低區間，虛線＝基準平均。先讀結論句，再看圖。</p>
+<h1 class="pg">趨勢</h1><p class="sub">一次看一個指標：線＝每日值，淡藍帶＝前 4 週同星期的高低區間，灰虛線＝基準平均。先讀結論句，再看圖。</p>
 <div class="bar"><label>指標 <select id="metric"></select></label><label>期間 <input id="from" type="date"> ～ <input id="to" type="date"></label><label>星期 <select id="dow"><option value="">全部</option><option>一</option><option>二</option><option>三</option><option>四</option><option>五</option><option>六</option><option>日</option></select></label><button data-r="28">近 4 週</button><button data-r="56">近 8 週</button><button data-r="91">近 13 週</button><button data-r="999">全部</button><button id="csv">⬇ CSV</button></div>
 <div class="insight" id="ins"></div>
 <div class="card"><div id="main"></div></div>
